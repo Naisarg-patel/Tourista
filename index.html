@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Tourista - Smart Tourist Guide & Trip Planner">
+    <title>Tourista | Smart Tourist Guide</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Leaflet & Routing -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body class="dark-theme">
+    <div class="app-container">
+
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="ph-fill ph-compass"></i>
+                    <h2>Tourista</h2>
+                </div>
+                <button class="mobile-close-btn" id="mobile-close-btn" aria-label="Close menu">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+
+            <nav class="nav-menu">
+                <p class="nav-label">Main Modes</p>
+                <div class="nav-item active" data-target="dashboard" id="nav-dashboard">
+                    <i class="ph ph-city"></i>
+                    <span>City Explorer</span>
+                </div>
+                <div class="nav-item" data-target="saved-trips" id="nav-saved-trips">
+                    <i class="ph ph-bookmarks"></i>
+                    <span>My Saved Trips</span>
+                </div>
+                <div class="nav-item" data-target="custom-trip" id="nav-custom-trip">
+                    <i class="ph ph-map-trifold"></i>
+                    <span>Plan Custom Trip</span>
+                </div>
+                <div class="nav-item ai-magic" data-target="ai-trip" id="nav-ai-trip">
+                    <i class="ph ph-magic-wand"></i>
+                    <span>Plan with AI</span>
+                </div>
+
+                <p class="nav-label">Utilities</p>
+                <div class="nav-item" data-target="map-view" id="nav-map-view">
+                    <i class="ph ph-map-pin"></i>
+                    <span>Map View</span>
+                </div>
+
+                <p class="nav-label">Account</p>
+                <div class="nav-item" data-target="settings" id="nav-settings">
+                    <i class="ph ph-gear"></i>
+                    <span>Settings & Profile</span>
+                </div>
+                <div class="nav-item admin-only" data-target="admin" id="nav-admin">
+                    <i class="ph ph-shield-check"></i>
+                    <span>Admin Dashboard</span>
+                </div>
+            </nav>
+
+            <div class="user-card" id="sidebar-user-card">
+                <div class="avatar">
+                    <img src="https://i.pravatar.cc/150?img=68" alt="User Avatar" id="sidebar-avatar-img">
+                </div>
+                <div class="user-info">
+                    <h4 id="sidebar-user-name">Tourist User</h4>
+                    <p id="sidebar-user-email">tourist@example.com</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-header">
+                <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Open menu">
+                    <i class="ph ph-list"></i>
+                </button>
+                <div class="search-bar">
+                    <i class="ph ph-magnifying-glass"></i>
+                    <input type="text" id="global-search" placeholder="Search cities, attractions, or events...">
+                </div>
+                <div class="user-actions">
+                    <button class="icon-btn" id="theme-toggle-btn" title="Toggle Light/Dark Mode"><i class="ph ph-sun"></i></button>
+                    <div class="notification-badge">
+                        <i class="ph ph-bell"></i>
+                        <span class="badge">3</span>
+                    </div>
+                    <button class="icon-btn" aria-label="Help">
+                        <i class="ph ph-question"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="content-scroll">
+
+                <!-- Dashboard / City Explorer View -->
+                <section class="view-section active" id="dashboard">
+                    <div class="hero-section">
+                        <h1>Ready to <span class="gradient-text">Explore?</span></h1>
+                        <p>Select a city to discover local attractions, events, and essential guides.</p>
+                    </div>
+
+                    <div class="cities-grid">
+                        <div class="city-card" style="background-image: url('https://images.unsplash.com/photo-1587424016739-bdabf49a8d9d?q=80&w=800&auto=format&fit=crop');">
+                            <div class="city-card-overlay">
+                                <h3>Ahmedabad</h3>
+                                <p>Heritage & Modernity</p>
+                                <button class="btn btn-primary">Explore <i class="ph ph-arrow-right"></i></button>
+                            </div>
+                        </div>
+                        <div class="city-card" style="background-image: url('https://images.unsplash.com/photo-1598460670397-2b7e91d84814?q=80&w=800&auto=format&fit=crop');">
+                            <div class="city-card-overlay">
+                                <h3>Gandhinagar</h3>
+                                <p>The Green Capital</p>
+                                <button class="btn btn-primary">Explore <i class="ph ph-arrow-right"></i></button>
+                            </div>
+                        </div>
+                        <div class="city-card" style="background-image: url('https://images.unsplash.com/photo-1627806509653-f728dc763071?q=80&w=800&auto=format&fit=crop');">
+                            <div class="city-card-overlay">
+                                <h3>Mehsana</h3>
+                                <p>Gateway to North Gujarat</p>
+                                <button class="btn btn-primary">Explore <i class="ph ph-arrow-right"></i></button>
+                            </div>
+                        </div>
+
+                        <div class="city-card search-custom">
+                            <div class="search-custom-inner">
+                                <div class="icon-wrapper">
+                                    <i class="ph ph-globe-hemisphere-east"></i>
+                                </div>
+                                <h3>Any City</h3>
+                                <p>Search globally</p>
+                                <button class="btn btn-secondary">Search <i class="ph ph-magnifying-glass"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="quick-info-row">
+                        <div class="glass-panel">
+                            <div class="panel-header">
+                                <i class="ph ph-calendar-star"></i>
+                                <h4>Local Events</h4>
+                            </div>
+                            <ul class="event-list">
+                                <li>
+                                    <div class="event-date">Oct 15</div>
+                                    <div class="event-details">
+                                        <strong>Navratri Festival</strong>
+                                        <span>Various Locations</span>
+                                    </div>
+                                </li>
+                                <li>
+                                    <div class="event-date">Nov 02</div>
+                                    <div class="event-details">
+                                        <strong>Food Market</strong>
+                                        <span>Riverfront</span>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="glass-panel emergency-panel">
+                            <div class="panel-header alert-header">
+                                <i class="ph ph-warning-circle"></i>
+                                <h4>Emergency & Info</h4>
+                            </div>
+                            <div class="emergency-numbers">
+                                <div class="e-num"><i class="ph ph-police-car"></i> Police: <strong>100</strong></div>
+                                <div class="e-num"><i class="ph ph-ambulance"></i> Ambulance: <strong>102</strong></div>
+                                <div class="e-num"><i class="ph ph-phone-call"></i> Tourist Help: <strong>1800-456-789</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Saved Trips View -->
+                <section class="view-section" id="saved-trips">
+                    <!-- Content injected by JS -->
+                    <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <h2>My Saved Trips</h2>
+                        <button class="btn btn-primary" id="new-trip-btn"><i class="ph ph-plus"></i> New Trip</button>
+                    </div>
+                    <div id="saved-trips-list">
+                        <div class="empty-state">
+                            <div class="icon-wrapper large">
+                                <i class="ph ph-folder-open"></i>
+                            </div>
+                            <h3>No trips saved yet</h3>
+                            <p>Generate an AI trip or plan a custom route to save it here.</p>
+                            <button class="btn btn-secondary mt-3">Try AI Planner</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Custom Trip View -->
+                <section class="view-section" id="custom-trip">
+                    <div class="section-header">
+                        <h2>Plan Custom Trip</h2>
+                        <p>Create a custom route. Start & End are required. Stops 1–3 are optional.</p>
+                    </div>
+
+                    <div class="planner-layout">
+                        <div class="glass-panel form-panel" style="overflow-y:auto;">
+                            <div class="form-group">
+                                <label><i class="ph ph-map-pin" style="color:var(--accent-primary);"></i> Starting Point <span class="required-star">*</span></label>
+                                <div class="input-with-icon">
+                                    <i class="ph ph-map-pin"></i>
+                                    <input type="text" id="start-point" placeholder="e.g. Ahmedabad" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group waypoint-stop">
+                                <label><i class="ph ph-flag" style="color:#f59e0b;"></i> Stop 1 <span class="optional-tag">Optional</span></label>
+                                <div class="input-with-icon">
+                                    <i class="ph ph-flag"></i>
+                                    <input type="text" class="waypoint-input" id="stop-1" placeholder="First stop (optional)">
+                                </div>
+                            </div>
+                            <div class="form-group waypoint-stop">
+                                <label><i class="ph ph-flag" style="color:#f59e0b;"></i> Stop 2 <span class="optional-tag">Optional</span></label>
+                                <div class="input-with-icon">
+                                    <i class="ph ph-flag"></i>
+                                    <input type="text" class="waypoint-input" id="stop-2" placeholder="Second stop (optional)">
+                                </div>
+                            </div>
+                            <div class="form-group waypoint-stop">
+                                <label><i class="ph ph-flag" style="color:#f59e0b;"></i> Stop 3 <span class="optional-tag">Optional</span></label>
+                                <div class="input-with-icon">
+                                    <i class="ph ph-flag"></i>
+                                    <input type="text" class="waypoint-input" id="stop-3" placeholder="Third stop (optional)">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label><i class="ph ph-flag-checkered" style="color:var(--success);"></i> Final Destination <span class="required-star">*</span></label>
+                                <div class="input-with-icon">
+                                    <i class="ph ph-flag-checkered"></i>
+                                    <input type="text" id="end-point" placeholder="e.g. Gandhinagar" required>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <button class="btn btn-primary w-100" id="find-routes-btn"><i class="ph ph-path"></i> Find Route</button>
+                                <button class="btn btn-magic w-100" id="smart-route-btn" title="Optimize for shortest path"><i class="ph ph-sparkle"></i> Smart Route</button>
+                            </div>
+                            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                                <button class="btn btn-success w-100" id="save-route-btn" disabled style="opacity: 0.5; cursor: not-allowed;"><i class="ph ph-floppy-disk"></i> Save Trip</button>
+                                <button class="btn btn-secondary w-100" id="download-offline-btn" disabled style="opacity: 0.5; cursor: not-allowed;"><i class="ph ph-download-simple"></i> Offline Download</button>
+                            </div>
+                        </div>
+                        <div class="glass-panel map-placeholder" id="routing-map" style="padding:0; overflow:hidden;">
+                            <i class="ph ph-map-trifold placeholder-icon"></i>
+                            <p class="placeholder-text">Enter locations to generate route</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- AI Trip Planner View -->
+                <section class="view-section" id="ai-trip">
+                    <div class="section-header text-center ai-header">
+                        <i class="ph ph-sparkle text-gradient large-icon"></i>
+                        <h2>AI Trip Planner</h2>
+                        <p>Generate a custom itinerary instantly using real location data.</p>
+                    </div>
+
+                    <div class="ai-prompt-box">
+                        <div class="form-row" style="display: flex; gap: 15px; margin-bottom: 15px;">
+                            <div class="form-group" style="flex: 2;">
+                                <label>Destination City</label>
+                                <div class="input-with-icon" style="display: flex; gap: 10px;">
+                                    <input type="text" id="ai-destination" placeholder="Where do you want to go?" style="flex: 1;">
+                                    <button class="btn btn-secondary" id="live-location-btn" title="Use Live Location" style="white-space: nowrap;">
+                                        <i class="ph ph-target"></i> Live Location
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label>Days</label>
+                                <input type="number" id="ai-days" min="1" max="7" value="2">
+                            </div>
+                        </div>
+
+                        <label>Trip Interests (Select up to 3)</label>
+                        <div class="ai-controls" style="margin-bottom: 15px;">
+                            <div class="tags" id="ai-tags">
+                                <span class="tag">Historic</span>
+                                <span class="tag">Attraction</span>
+                                <span class="tag">Restaurant</span>
+                                <span class="tag">Museum</span>
+                                <span class="tag">Nature</span>
+                            </div>
+                        </div>
+
+                        <label>Additional Notes (Optional)</label>
+                        <textarea id="ai-notes" placeholder="E.g., I want a relaxed pace with lots of local food..." rows="2" style="margin-bottom: 15px;"></textarea>
+
+                        <div class="ai-controls">
+                            <button class="btn btn-magic" id="generate-ai-btn">
+                                <span>Generate Itinerary</span>
+                                <i class="ph ph-magic-wand"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="ai-results" id="ai-results" style="display: none;">
+                        <div class="loading-state">
+                            <div class="spinner"></div>
+                            <p>Crafting your perfect trip...</p>
+                        </div>
+                        <div class="itinerary-content" style="display: none;">
+                            <!-- Injected by JS -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Settings View -->
+                <section class="view-section" id="settings">
+                    <div class="section-header">
+                        <h2>Settings & Profile</h2>
+                        <p>Customize your Tourista experience.</p>
+                    </div>
+
+                    <!-- Profile Card -->
+                    <div class="glass-panel profile-card mb-4">
+                        <div class="profile-avatar-section">
+                            <div class="profile-avatar-wrap">
+                                <img src="https://i.pravatar.cc/150?img=68" alt="Profile Avatar" id="profile-avatar-img">
+                                <label for="avatar-upload" class="avatar-edit-btn" title="Change photo"><i class="ph ph-camera"></i></label>
+                                <input type="file" id="avatar-upload" accept="image/*" style="display:none;">
+                            </div>
+                            <div class="profile-text">
+                                <h3 id="profile-display-name">Tourist User</h3>
+                                <p id="profile-display-email">tourist@example.com</p>
+                            </div>
+                        </div>
+                        <div class="profile-fields">
+                            <div class="form-group">
+                                <label>Display Name</label>
+                                <input type="text" id="settings-name" class="settings-input" placeholder="Your name" value="Tourist User">
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="settings-email" class="settings-input" placeholder="your@email.com" value="tourist@example.com">
+                            </div>
+                            <button class="btn btn-primary" id="save-profile-btn"><i class="ph ph-floppy-disk"></i> Save Profile</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-grid">
+                        <!-- Appearance -->
+                        <div class="glass-panel">
+                            <h4 style="margin-bottom:1.5rem; display:flex; align-items:center; gap:0.5rem;"><i class="ph ph-palette" style="color:var(--accent-primary);"></i> Appearance</h4>
+                            <div class="toggle-row">
+                                <div>
+                                    <span class="toggle-label">Dark Theme</span>
+                                    <p class="toggle-desc">Use dark background</p>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="toggle-dark-theme" checked>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                            <div class="toggle-row">
+                                <div>
+                                    <span class="toggle-label">Animations</span>
+                                    <p class="toggle-desc">Smooth UI transitions</p>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="toggle-animations" checked>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- App Preferences -->
+                        <div class="glass-panel">
+                            <h4 style="margin-bottom:1.5rem; display:flex; align-items:center; gap:0.5rem;"><i class="ph ph-sliders" style="color:var(--accent-secondary);"></i> App Preferences</h4>
+                            <div class="toggle-row">
+                                <div>
+                                    <span class="toggle-label">Offline Maps</span>
+                                    <p class="toggle-desc">Download for offline use</p>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="toggle-offline">
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                            <div class="toggle-row">
+                                <div>
+                                    <span class="toggle-label">Push Notifications</span>
+                                    <p class="toggle-desc">Event & trip reminders</p>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="toggle-notifications" checked>
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Admin View -->
+                <section class="view-section" id="admin">
+                    <div class="section-header">
+                        <h2>Admin Dashboard <span class="badge danger">Simulated</span></h2>
+                        <p>System diagnostics and access control.</p>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ph ph-users"></i></div>
+                            <div class="stat-info">
+                                <h3>1,245</h3>
+                                <p>Active Users</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="ph ph-map-trifold"></i></div>
+                            <div class="stat-info">
+                                <h3>892</h3>
+                                <p>Trips Planned</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon warning"><i class="ph ph-warning"></i></div>
+                            <div class="stat-info">
+                                <h3>0</h3>
+                                <p>System Errors</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-panel mt-3">
+                        <p>This view is restricted to administrators for managing system performance and user roles.</p>
+                    </div>
+                </section>
+
+                <!-- General Map View -->
+                <section class="view-section" id="map-view">
+                    <div class="section-header">
+                        <h2>Interactive Map</h2>
+                        <p>Explore places visually.</p>
+                    </div>
+                    <div class="glass-panel full-map-placeholder" id="main-map" style="padding:0; z-index:1;">
+                        <!-- Leaflet Map Container -->
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Day-by-Day Itinerary Modal -->
+    <div id="itinerary-modal" class="modal-overlay">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3><i class="ph ph-notebook"></i> Day-by-Day Itinerary</h3>
+                <button class="close-modal-btn" id="close-itinerary-modal"><i class="ph ph-x"></i></button>
+            </div>
+            <p class="modal-subtitle">Add your personal day-by-day notes for this trip.</p>
+            <textarea id="itinerary-text" placeholder="Day 1: Arrive and settle in...&#10;Day 2: Visit the museum...&#10;Day 3: ..." rows="10" class="w-100"></textarea>
+            <div class="modal-actions" style="display: flex; gap: 10px; margin-top: 15px; justify-content: flex-end;">
+                <button class="btn btn-secondary" id="cancel-itinerary-btn">Cancel</button>
+                <button class="btn btn-primary" id="save-itinerary-btn">Save Notes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
