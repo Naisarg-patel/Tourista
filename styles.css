@@ -67,6 +67,37 @@ body.light-theme {
         radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.05) 0%, transparent 40%);
 }
 
+body.light-theme .sidebar {
+    background: #ffffff;
+    border-right: 1px solid #e2e8f0;
+}
+
+body.light-theme .nav-label {
+    color: #475569;
+    font-weight: 700;
+}
+
+body:not(.light-theme) .sidebar {
+    background: rgba(30, 41, 59, 0.85); /* distinct depth for dark theme */
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Light Theme Enhancements for Slider and Scrollbar */
+body.light-theme .slider {
+    background-color: rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+body.light-theme input:checked + .slider {
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+body.light-theme .nav-menu::-webkit-scrollbar-thumb,
+body.light-theme ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2) !important;
+}
+
 /* === RESET & FOUNDATION === */
 * {
     margin: 0;
@@ -177,6 +208,7 @@ textarea {
     color: var(--accent-primary);
     background: var(--gradient-primary);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -451,12 +483,14 @@ body.light-theme .icon-btn:hover {
 .gradient-text {
     background: var(--gradient-primary);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
 .text-gradient {
     background: var(--gradient-primary);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -1374,19 +1408,69 @@ body.light-theme .modal-content {
 
 textarea#itinerary-text {
     width: 100%;
-    padding: 1rem;
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, 0.1);
     color: var(--text-primary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    font-family: inherit;
     resize: vertical;
     min-height: 150px;
+    margin-bottom: 1rem;
 }
-
 body.light-theme textarea#itinerary-text {
-    background: rgba(0, 0, 0, 0.02);
+    background: rgba(0, 0, 0, 0.04);
     border-color: rgba(0, 0, 0, 0.1);
 }
+
+/* === MAP OVERLAY FIXES === */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+    background-color: var(--bg-surface) !important;
+    color: var(--text-primary) !important;
+    backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    box-shadow: var(--glass-shadow);
+}
+.leaflet-popup-content .btn-secondary {
+    background: var(--accent-primary) !important;
+    color: white !important;
+    border: none !important;
+}
+.leaflet-popup-content .btn-secondary:hover {
+    background: var(--accent-hover) !important;
+}
+
+.leaflet-routing-container {
+    background-color: var(--bg-surface) !important;
+    color: var(--text-primary) !important;
+    backdrop-filter: var(--glass-blur);
+    border: var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+}
+.leaflet-routing-alt {
+    background: transparent !important;
+}
+.leaflet-routing-alt h2,
+.leaflet-routing-alt h3 {
+    color: var(--text-primary) !important;
+}
+tr.leaflet-routing-instruction-row:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+body.light-theme tr.leaflet-routing-instruction-row:hover {
+    background: rgba(0, 0, 0, 0.05) !important;
+}
+.leaflet-routing-collapse-btn {
+    color: var(--text-primary) !important;
+    font-size: 1.8rem !important;
+    line-height: 1 !important;
+    top: 5px !important;
+    right: 5px !important;
+    z-index: 1000 !important;
+    text-decoration: none !important;
+}
+
 
 textarea#itinerary-text:focus {
     border-color: var(--accent-primary);

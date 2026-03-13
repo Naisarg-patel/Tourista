@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let mainMap = null;
     let routingMap = null;
     let routingControl = null;
+    let explorerMap = null;
+    let explorerMarkers = [];
+    let currentExplorerCity = '';
 
     // ==========================================
     // NAVIGATION
@@ -177,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (citiesData.data && citiesData.data.length > 0) {
                 let html = '';
                 citiesData.data.forEach(city => {
-                    html += `<div class="city-card" style="background-image: url('${city.image_url}');"><div class="city-card-overlay"><h3>${city.name}</h3><p>${city.subtitle || ''}</p><button class="btn btn-primary">Explore <i class="ph ph-arrow-right"></i></button></div></div>`;
+                    html += `<div class="city-card" style="background-image: url('${city.image_url}');"><div class="city-card-overlay"><h3>${city.name}</h3><p>${city.subtitle || ''}</p><button class="btn btn-primary explore-city-btn" data-city="${city.name}">Explore <i class="ph ph-arrow-right"></i></button></div></div>`;
                 });
                 html += `<div class="city-card search-custom"><div class="search-custom-inner"><div class="icon-wrapper"><i class="ph ph-globe-hemisphere-east"></i></div><h3>Any City</h3><p>Search globally</p><button class="btn btn-secondary">Search <i class="ph ph-magnifying-glass"></i></button></div></div>`;
                 citiesGrid.innerHTML = html;
@@ -195,6 +198,205 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Failed to load dashboard data", err);
         }
     }
+
+    // ==========================================
+    // EXPLORER VIEW LOGIC
+    // ==========================================
+    document.addEventListener('click', (e) => {
+        const exploreBtn = e.target.closest('.explore-city-btn');
+        if (exploreBtn) {
+            const city = exploreBtn.getAttribute('data-city');
+            openExplorerDetail(city);
+        }
+        
+        const backCitiesBtn = e.target.closest('#back-to-cities-btn');
+        if (backCitiesBtn) {
+            document.getElementById('explorer-detail').classList.remove('active');
+            document.getElementById('dashboard').classList.add('active');
+        }
+        
+        const filterTag = e.target.closest('#explorer-filters-container .tag');
+        if (filterTag) {
+            document.querySelectorAll('#explorer-filters-container .tag').forEach(t => {
+                t.classList.remove('active');
+                t.style.background = 'rgba(255,255,255,0.1)';
+                t.style.color = '';
+            });
+            filterTag.classList.add('active');
+            filterTag.style.background = 'var(--accent-primary)';
+            filterTag.style.color = '#fff';
+            
+            const category = filterTag.getAttribute('data-filter');
+            loadExplorerPlaces(currentExplorerCity, category);
+        }
+
+        const customSearchObj = e.target.closest('.search-custom button');
+        if (customSearchObj) {
+            const city = prompt('Enter a city name to explore:');
+            if(city) openExplorerDetail(city);
+        }
+    });
+
+    async function openExplorerDetail(city) {
+        currentExplorerCity = city;
+        
+        // Hide standard dashboard, show explorer-detail
+        document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+        document.getElementById('explorer-detail').classList.add('active');
+        document.getElementById('explorer-city-title').textContent = `Explore ${city}`;
+        
+        // Reset filters
+        document.querySelectorAll('#explorer-filters-container .tag').forEach(t => {
+             t.classList.remove('active');
+             t.style.background = 'rgba(255,255,255,0.1)';
+             t.style.color = '';
+        });
+        const dFilter = document.querySelector('#explorer-filters-container .tag[data-filter="attraction"]');
+        if(dFilter) {
+             dFilter.classList.add('active');
+             dFilter.style.background = 'var(--accent-primary)';
+             dFilter.style.color = '#fff';
+        }
+        
+        // Initialize Map
+        setTimeout(() => {
+            initExplorerMap(city);
+        }, 300);
+    }
+
+    async function initExplorerMap(city) {
+        const mapDiv = document.getElementById('explorer-map');
+        if(explorerMap) {
+            explorerMap.remove();
+        }
+        explorerMap = L.map(mapDiv).setView([20, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(explorerMap);
+        
+        // Find city coords
+        try {
+            const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}&limit=1`, { headers: { "User-Agent": "TouristaApp/1.0" }});
+            const geoData = await geoRes.json();
+            if(geoData && geoData.length > 0) {
+                const lat = parseFloat(geoData[0].lat);
+                const lon = parseFloat(geoData[0].lon);
+                explorerMap.setView([lat, lon], 12);
+                
+                // load default places
+                loadExplorerPlaces(city, 'attraction', lat, lon);
+            } else {
+                alert(`Could not find location for ${city}`);
+            }
+        } catch(e) {
+            console.error(e);
+        }
+    }
+
+    async function loadExplorerPlaces(city, category, lat=null, lon=null) {
+        const listDiv = document.getElementById('explorer-results-container');
+        const loading = document.querySelector('#explorer-places-list .loading-state');
+        loading.style.display = 'block';
+        listDiv.innerHTML = '';
+        
+        explorerMarkers.forEach(m => explorerMap.removeLayer(m));
+        explorerMarkers = [];
+
+        try {
+            if(lat === null || lon === null) {
+                const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}&limit=1`, { headers: { "User-Agent": "TouristaApp/1.0" }});
+                const geoData = await geoRes.json();
+                lat = parseFloat(geoData[0].lat);
+                lon = parseFloat(geoData[0].lon);
+                explorerMap.setView([lat, lon], 12);
+            }
+
+            let overpassQuery = '';
+            const radius = 10000;
+            if(category === 'all' || category === 'attraction') {
+                overpassQuery = `[out:json][timeout:15];(node["tourism"="attraction"](around:${radius},${lat},${lon});node["tourism"="viewpoint"](around:${radius},${lat},${lon}););out body 20;`;
+            } else if(category === 'mall') {
+                overpassQuery = `[out:json][timeout:15];(node["shop"="mall"](around:${radius},${lat},${lon});way["shop"="mall"](around:${radius},${lat},${lon}););out center 20;`;
+            } else if(category === 'garden') {
+                overpassQuery = `[out:json][timeout:15];(node["leisure"="garden"](around:${radius},${lat},${lon});node["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="garden"](around:${radius},${lat},${lon}););out center 20;`;
+            } else if(category === 'historical') {
+                overpassQuery = `[out:json][timeout:15];(node["historic"](around:${radius},${lat},${lon});way["historic"](around:${radius},${lat},${lon}););out center 20;`;
+            } else if(category === 'lake') {
+                overpassQuery = `[out:json][timeout:15];(node["water"="lake"](around:${radius},${lat},${lon});way["natural"="water"](around:${radius},${lat},${lon}););out center 20;`;
+            } else if(category === 'cafe') {
+                overpassQuery = `[out:json][timeout:15];(node["amenity"="cafe"](around:${radius},${lat},${lon});way["amenity"="cafe"](around:${radius},${lat},${lon}););out center 20;`;
+            } else if(category === 'restaurant') {
+                overpassQuery = `[out:json][timeout:15];(node["amenity"="restaurant"](around:${radius},${lat},${lon});way["amenity"="restaurant"](around:${radius},${lat},${lon}););out center 20;`;
+            } else if(category === 'museum') {
+                overpassQuery = `[out:json][timeout:15];(node["tourism"="museum"](around:${radius},${lat},${lon});way["tourism"="museum"](around:${radius},${lat},${lon}););out center 20;`;
+            }
+
+            let overpassRes;
+            try {
+                overpassRes = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: overpassQuery, signal: AbortSignal.timeout(10000) });
+            } catch(e) {
+                overpassRes = await fetch('https://overpass.kumi.systems/api/interpreter', { method: 'POST', body: overpassQuery, signal: AbortSignal.timeout(10000) });
+            }
+            const data = await overpassRes.json();
+            
+            loading.style.display = 'none';
+
+            let validPois = [];
+            if(data && data.elements) {
+                validPois = data.elements.filter(el => el.tags && (el.tags.name || el.tags.amenity || el.tags.shop || el.tags.tourism || el.tags.leisure || el.tags.historic || el.tags.water));
+            }
+
+            if(validPois.length === 0) {
+                listDiv.innerHTML = `<div class="empty-state"><p>No ${category} found here. Try another filter.</p></div>`;
+                return;
+            }
+
+            validPois.forEach((poi, index) => {
+                const isWay = poi.type === 'way';
+                const pLat = isWay ? poi.center.lat : poi.lat;
+                const pLon = isWay ? poi.center.lon : poi.lon;
+                const name = poi.tags.name || `Unnamed ${category}`;
+                const typeStr = poi.tags.historic || poi.tags.amenity || poi.tags.tourism || poi.tags.shop || poi.tags.leisure || category;
+                const details = poi.tags.description || poi.tags.opening_hours || poi.tags.website || "No extra details available.";
+                
+                // Add to list
+                const html = `<div class="glass-panel" style="padding: 15px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.borderColor='var(--accent-primary)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.1)'" onclick="window.explorePanTo(${pLat}, ${pLon}, ${index})">
+                    <h3 style="font-size: 1.1rem; color: var(--text-primary); margin-bottom: 5px;">${name}</h3>
+                    <div style="font-size: 0.8rem; color: var(--accent-secondary); margin-bottom: 10px; text-transform: capitalize;">${typeStr.replace(/_/g, ' ')}</div>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary);">${details}</p>
+                    <div style="margin-top: 10px; font-size: 0.8rem; color: var(--success);"><i class="ph ph-map-pin"></i> ${pLat.toFixed(4)}, ${pLon.toFixed(4)}</div>
+                </div>`;
+                listDiv.insertAdjacentHTML('beforeend', html);
+
+                // Add to map
+                const color = category === 'historical' ? '#f59e0b' : category === 'mall' ? '#ef4444' : category === 'lake' ? '#3b82f6' : category === 'garden' ? '#10b981' : '#6366f1';
+                const poiIcon = L.divIcon({
+                    html: `<div style="background:${color};color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 5px rgba(0,0,0,0.3); border: 2px solid white;">${index + 1}</div>`,
+                    className: '', iconSize: [24,24], iconAnchor: [12,12]
+                });
+                const marker = L.marker([pLat, pLon], { icon: poiIcon })
+                    .addTo(explorerMap)
+                    .bindPopup(`<b>${name}</b><br><span style="text-transform: capitalize;">${typeStr.replace(/_/g, ' ')}</span>`);
+                explorerMarkers.push(marker);
+            });
+
+            if (explorerMarkers.length > 0) {
+                const group = L.featureGroup(explorerMarkers);
+                explorerMap.fitBounds(group.getBounds().pad(0.1));
+            }
+
+        } catch(err) {
+            loading.style.display = 'none';
+            console.error(err);
+            listDiv.innerHTML = `<div class="empty-state"><p style="color:var(--danger)">Error fetching places. Try again.</p></div>`;
+        }
+    }
+
+    // Global func for panning map from list click
+    window.explorePanTo = function(lat, lon, idx) {
+        if(explorerMap && explorerMarkers[idx]) {
+            explorerMap.setView([lat, lon], 16, { animate: true });
+            explorerMarkers[idx].openPopup();
+        }
+    };
 
     // ==========================================
     // SAVED TRIPS — load + delete
@@ -401,6 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let currentRouteDescription = '';
         let currentRouteCoords = [];
         let currentRouteNames = [];
+        let poiMarkers = [];
 
         function enableSaveButtons() {
             [saveTripBtn, downloadOfflineBtn].forEach(btn => {
@@ -470,14 +673,95 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (routingControl) routingMap.removeControl(routingControl);
+                poiMarkers.forEach(m => routingMap.removeLayer(m));
+                poiMarkers = [];
 
                 routingControl = L.Routing.control({
                     waypoints: validCoords,
                     routeWhileDragging: false,
                     showAlternatives: false,
                     fitSelectedRoutes: true,
+                    collapsible: true,
                     lineOptions: { styles: [{ color: '#6366f1', opacity: 0.8, weight: 6 }] }
                 }).addTo(routingMap);
+
+                // === FETCH FAMOUS LOCATIONS ===
+                try {
+                    let minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+                    validCoords.forEach(c => {
+                        minLat = Math.min(minLat, c.lat);
+                        maxLat = Math.max(maxLat, c.lat);
+                        minLon = Math.min(minLon, c.lng);
+                        maxLon = Math.max(maxLon, c.lng);
+                    });
+                    minLat -= 0.05; maxLat += 0.05; minLon -= 0.05; maxLon += 0.05;
+
+                    const overpassQuery = `[out:json][timeout:10];(node["tourism"="attraction"](${minLat},${minLon},${maxLat},${maxLon});node["historic"](${minLat},${minLon},${maxLat},${maxLon}););out body 15;`;
+                    let overpassRes;
+                    let validPois = [];
+                    try {
+                        const controller1 = new AbortController();
+                        const id1 = setTimeout(() => controller1.abort(), 10000);
+                        overpassRes = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: overpassQuery, signal: controller1.signal });
+                        clearTimeout(id1);
+                    } catch(e) {
+                         const controller2 = new AbortController();
+                         const id2 = setTimeout(() => controller2.abort(), 10000);
+                         overpassRes = await fetch('https://overpass.kumi.systems/api/interpreter', { method: 'POST', body: overpassQuery, signal: controller2.signal });
+                         clearTimeout(id2);
+                    }
+                    if(overpassRes && overpassRes.ok) {
+                        const overpassData = await overpassRes.json();
+                        if(overpassData && overpassData.elements) {
+                            validPois = overpassData.elements.filter(el => el.tags && el.tags.name);
+                        }
+                    }
+
+                    if (validPois.length === 0) {
+                        throw new Error("No POIs found from Overpass or fetch failed.");
+                    }
+
+                    validPois.slice(0, 15).forEach(poi => {
+                        const type = poi.tags && poi.tags.historic ? "Historic Site" : "Attraction";
+                        const name = poi.tags ? poi.tags.name : "Famous Place";
+                        const poiIcon = L.divIcon({
+                            html: '<div style="background:#f59e0b;color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 5px rgba(0,0,0,0.3); border: 2px solid white;">⭐</div>',
+                            className: '', iconSize: [24,24], iconAnchor: [12,12]
+                        });
+                        const marker = L.marker([poi.lat, poi.lon], { icon: poiIcon })
+                            .addTo(routingMap)
+                            .bindPopup(`
+                                <div style="text-align:center;">
+                                    <b>${name}</b><br>
+                                    <span style="color:#64748b;font-size:0.8rem;">${type}</span><br>
+                                    <button class="btn btn-secondary mt-2 add-stop-btn" data-name="${name}" style="padding:0.3rem 0.6rem;font-size:0.8rem;">Add as Stop</button>
+                                </div>
+                            `);
+                        poiMarkers.push(marker);
+                    });
+                } catch(err) {
+                    console.warn("Could not fetch famous locations, generating fallbacks", err);
+                    // Add safe fallback POIs
+                    for (let fi=1; fi<=5; fi++) {
+                        const flat = validCoords[0].lat + (Math.random()-0.5)*0.08;
+                        const flon = validCoords[0].lng + (Math.random()-0.5)*0.08;
+                        const poiIcon = L.divIcon({
+                            html: '<div style="background:#f59e0b;color:white;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 5px rgba(0,0,0,0.3); border: 2px solid white;">⭐</div>',
+                            className: '', iconSize: [24,24], iconAnchor: [12,12]
+                        });
+                        const marker = L.marker([flat, flon], { icon: poiIcon })
+                            .addTo(routingMap)
+                            .bindPopup(`
+                                <div style="text-align:center;">
+                                    <b>Popular Landmark ${fi}</b><br>
+                                    <span style="color:#64748b;font-size:0.8rem;">Attraction</span><br>
+                                    <button class="btn btn-secondary mt-2 add-stop-btn" data-name="Popular Landmark ${fi}" style="padding:0.3rem 0.6rem;font-size:0.8rem;">Add as Stop</button>
+                                </div>
+                            `);
+                        poiMarkers.push(marker);
+                    }
+                }
+                // ==============================
 
                 currentRouteDescription = validNames.join(' ➔ ');
                 currentRouteCoords = validCoords.map(c => [c.lat, c.lng]);
@@ -747,6 +1031,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 else alert('Error saving notes.');
             } catch (err) { console.error('Save notes failed', err); alert('Database error.'); }
             finally { saveNotesBtn.innerHTML = orig; }
+        }
+
+        // Add as Stop from POI popup
+        const addStopBtn = e.target.closest('.add-stop-btn');
+        if (addStopBtn) {
+            const stopName = addStopBtn.getAttribute('data-name');
+            const s1 = document.getElementById('stop-1');
+            const s2 = document.getElementById('stop-2');
+            const s3 = document.getElementById('stop-3');
+            
+            if (!s1.value) { s1.value = stopName; }
+            else if (!s2.value) { s2.value = stopName; }
+            else if (!s3.value) { s3.value = stopName; }
+            else { 
+                alert("All 3 optional stops are currently full. Clear one manually to add this attraction."); 
+                return; 
+            }
+            alert(`"${stopName}" added as a stop! Click 'Find Route' to update map.`);
         }
 
         // Offline Trip from saved trips
