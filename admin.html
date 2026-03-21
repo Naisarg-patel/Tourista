@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Tourista Admin Panel - Restricted Access">
+    <title>Tourista | Admin Panel</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="admin.css">
+</head>
+
+<body class="dark-theme" id="admin-body">
+
+    <!-- ===================== LOGIN GATE ===================== -->
+    <div id="admin-login-screen" class="admin-login-screen">
+        <div class="login-bg-blobs">
+            <div class="blob blob1"></div>
+            <div class="blob blob2"></div>
+            <div class="blob blob3"></div>
+        </div>
+        <div class="login-card glass-panel">
+            <div class="login-logo">
+                <i class="ph-fill ph-shield-check"></i>
+                <h2>Admin Portal</h2>
+                <p>Tourista Control Center · Restricted Access</p>
+            </div>
+            <div id="login-error" class="login-error" style="display:none">
+                <i class="ph ph-warning-circle"></i> <span id="login-error-msg">Invalid credentials.</span>
+            </div>
+            <div class="form-group">
+                <label>Admin Username</label>
+                <div class="input-with-icon">
+                    <i class="ph ph-user"></i>
+                    <input type="text" id="admin-username" placeholder="Enter username" autocomplete="off">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <div class="input-with-icon">
+                    <i class="ph ph-lock"></i>
+                    <input type="password" id="admin-password" placeholder="Enter password">
+                    <button class="toggle-pw-btn" id="toggle-pw-btn" type="button" title="Show/Hide password">
+                        <i class="ph ph-eye" id="pw-eye-icon"></i>
+                    </button>
+                </div>
+            </div>
+            <button class="btn btn-primary w-100" id="admin-login-btn" style="margin-top:0.5rem;">
+                <i class="ph ph-sign-in"></i> Sign In to Admin
+            </button>
+            <a href="index.html" class="back-to-site-link">
+                <i class="ph ph-arrow-left"></i> Back to Tourista
+            </a>
+            <p class="login-hint">Default: <strong>admin</strong> / <strong>tourista@2024</strong></p>
+        </div>
+    </div>
+
+    <!-- ===================== ADMIN APP ===================== -->
+    <div id="admin-app" class="admin-app" style="display:none">
+
+        <!-- Sidebar -->
+        <aside class="admin-sidebar" id="admin-sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="ph-fill ph-shield-check"></i>
+                    <h2>Admin</h2>
+                </div>
+                <button class="mobile-close-btn" id="admin-mobile-close">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+
+            <nav class="admin-nav">
+                <p class="nav-label">Overview</p>
+                <div class="admin-nav-item active" data-panel="dashboard" id="anav-dashboard">
+                    <i class="ph ph-chart-bar"></i>
+                    <span>Dashboard</span>
+                </div>
+
+                <p class="nav-label">Content</p>
+                <div class="admin-nav-item" data-panel="places" id="anav-places">
+                    <i class="ph ph-map-pin"></i>
+                    <span>Manage Places</span>
+                </div>
+                <div class="admin-nav-item" data-panel="categories" id="anav-categories">
+                    <i class="ph ph-tag"></i>
+                    <span>Categories</span>
+                </div>
+                <div class="admin-nav-item" data-panel="content" id="anav-content">
+                    <i class="ph ph-image"></i>
+                    <span>Content / Media</span>
+                </div>
+
+                <p class="nav-label">Users</p>
+                <div class="admin-nav-item" data-panel="users" id="anav-users">
+                    <i class="ph ph-users"></i>
+                    <span>User Management</span>
+                </div>
+                <div class="admin-nav-item" data-panel="reviews" id="anav-reviews">
+                    <i class="ph ph-star"></i>
+                    <span>Reviews & Ratings</span>
+                </div>
+                <div class="admin-nav-item" data-panel="reports" id="anav-reports">
+                    <i class="ph ph-warning-octagon"></i>
+                    <span>Report Handling</span>
+                    <span class="nav-badge" id="reports-badge">3</span>
+                </div>
+
+                <p class="nav-label">System</p>
+                <div class="admin-nav-item" data-panel="mapcontrol" id="anav-mapcontrol">
+                    <i class="ph ph-globe-hemisphere-west"></i>
+                    <span>Map Control</span>
+                </div>
+                <div class="admin-nav-item" data-panel="security" id="anav-security">
+                    <i class="ph ph-lock"></i>
+                    <span>Security</span>
+                </div>
+                <div class="admin-nav-item" data-panel="settings" id="anav-settings">
+                    <i class="ph ph-gear"></i>
+                    <span>API & Settings</span>
+                </div>
+            </nav>
+
+            <!-- Admin User Card -->
+            <div class="user-card" style="border-top:1px solid rgba(255,255,255,0.05); padding-top:1rem; margin-top:auto;">
+                <div class="avatar">
+                    <img src="https://i.pravatar.cc/150?img=12" alt="Admin Avatar" id="admin-avatar">
+                </div>
+                <div class="user-info">
+                    <h4 id="admin-display-name">Admin User</h4>
+                    <p>Super Administrator</p>
+                </div>
+                <button class="icon-btn" id="admin-logout-btn" title="Logout" style="margin-left:auto; color:var(--danger);">
+                    <i class="ph ph-sign-out"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="admin-main">
+            <!-- Top Header -->
+            <header class="admin-top-bar">
+                <button class="mobile-menu-btn" id="admin-mobile-menu">
+                    <i class="ph ph-list"></i>
+                </button>
+                <div class="admin-breadcrumb">
+                    <i class="ph ph-shield-check" style="color:var(--accent-primary)"></i>
+                    <span id="admin-breadcrumb-text">Dashboard</span>
+                </div>
+                <div class="admin-header-actions">
+                    <button class="icon-btn" id="admin-notif-btn" title="Notifications">
+                        <i class="ph ph-bell"></i>
+                        <span class="badge">3</span>
+                    </button>
+                    <a href="index.html" class="btn btn-secondary" style="font-size:0.85rem; padding: 0.5rem 1rem;">
+                        <i class="ph ph-house"></i> Main Site
+                    </a>
+                </div>
+            </header>
+
+            <!-- Panels Scroll Container -->
+            <div class="admin-scroll" id="admin-scroll">
+
+                <!-- =============================== DASHBOARD =============================== -->
+                <section class="admin-panel active" id="panel-dashboard">
+                    <div class="section-header">
+                        <h2>📊 Dashboard Analytics</h2>
+                        <p>Real-time overview of your platform's performance.</p>
+                    </div>
+
+                    <!-- Stats Row -->
+                    <div class="admin-stats-row" id="admin-stats-row">
+                        <div class="admin-stat-card accent-blue">
+                            <div class="astat-icon"><i class="ph ph-users"></i></div>
+                            <div class="astat-info">
+                                <p>Total Users</p>
+                                <h3 id="stat-users">—</h3>
+                                <span class="stat-trend up"><i class="ph ph-trend-up"></i> +12% this week</span>
+                            </div>
+                        </div>
+                        <div class="admin-stat-card accent-purple">
+                            <div class="astat-icon"><i class="ph ph-map-pin"></i></div>
+                            <div class="astat-info">
+                                <p>Total Places</p>
+                                <h3 id="stat-places">—</h3>
+                                <span class="stat-trend up"><i class="ph ph-trend-up"></i> +5 new today</span>
+                            </div>
+                        </div>
+                        <div class="admin-stat-card accent-pink">
+                            <div class="astat-icon"><i class="ph ph-star"></i></div>
+                            <div class="astat-info">
+                                <p>Total Reviews</p>
+                                <h3 id="stat-reviews">—</h3>
+                                <span class="stat-trend up"><i class="ph ph-trend-up"></i> +32 today</span>
+                            </div>
+                        </div>
+                        <div class="admin-stat-card accent-orange">
+                            <div class="astat-icon"><i class="ph ph-warning-octagon"></i></div>
+                            <div class="astat-info">
+                                <p>Open Reports</p>
+                                <h3 id="stat-reports">3</h3>
+                                <span class="stat-trend down"><i class="ph ph-trend-down"></i> Needs attention</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts + Top Places -->
+                    <div class="dashboard-charts-row">
+                        <div class="glass-panel chart-card">
+                            <h4><i class="ph ph-chart-line"></i> User Growth (7 days)</h4>
+                            <canvas id="userGrowthChart" height="180"></canvas>
+                        </div>
+                        <div class="glass-panel chart-card">
+                            <h4><i class="ph ph-fire"></i> Most Viewed Places</h4>
+                            <canvas id="placesChart" height="180"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel mt-3">
+                        <h4 style="margin-bottom:1rem;"><i class="ph ph-magnifying-glass"></i> Most Searched Cities</h4>
+                        <div class="search-city-list" id="search-city-list">
+                            <div class="city-search-item"><span>🏙️ Ahmedabad</span><div class="city-bar"><div class="city-bar-fill" style="width:85%"></div></div><strong>1,243</strong></div>
+                            <div class="city-search-item"><span>🌿 Gandhinagar</span><div class="city-bar"><div class="city-bar-fill" style="width:62%"></div></div><strong>891</strong></div>
+                            <div class="city-search-item"><span>🛕 Mehsana</span><div class="city-bar"><div class="city-bar-fill" style="width:41%"></div></div><strong>587</strong></div>
+                            <div class="city-search-item"><span>🏖️ Surat</span><div class="city-bar"><div class="city-bar-fill" style="width:35%"></div></div><strong>492</strong></div>
+                            <div class="city-search-item"><span>🌄 Vadodara</span><div class="city-bar"><div class="city-bar-fill" style="width:28%"></div></div><strong>378</strong></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- =============================== PLACES =============================== -->
+                <section class="admin-panel" id="panel-places">
+                    <div class="section-header" style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <h2>🧾 Manage Places</h2>
+                            <p>Add, edit, delete, and update map locations for all places.</p>
+                        </div>
+                        <button class="btn btn-primary" id="open-add-place-modal">
+                            <i class="ph ph-plus"></i> Add New Place
+                        </button>
+                    </div>
+
+                    <!-- Search / Filter Bar -->
+                    <div class="glass-panel" style="padding:1rem 1.5rem; margin-bottom:1.5rem; display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+                        <div class="input-with-icon" style="flex:1; min-width:200px;">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input type="text" id="places-search" placeholder="Search places…">
+                        </div>
+                        <select class="admin-select" id="places-cat-filter">
+                            <option value="">All Categories</option>
+                            <option value="attraction">Attraction</option>
+                            <option value="restaurant">Restaurant</option>
+                            <option value="hotel">Hotel</option>
+                            <option value="cafe">Cafe</option>
+                            <option value="temple">Temple</option>
+                            <option value="mall">Mall</option>
+                            <option value="garden">Garden</option>
+                            <option value="museum">Museum</option>
+                        </select>
+                    </div>
+
+                    <!-- Places Table -->
+                    <div class="glass-panel table-wrapper" style="padding:0; overflow:hidden;">
+                        <table class="admin-table" id="places-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>City</th>
+                                    <th>Category</th>
+                                    <th>Rating</th>
+                                    <th>Lat / Lng</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="places-tbody">
+                                <!-- JS Injected -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- =============================== CATEGORIES =============================== -->
+                <section class="admin-panel" id="panel-categories">
+                    <div class="section-header" style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:10px;">
+                        <div>
+                            <h2>🏷️ Category Management</h2>
+                            <p>Control what types of places exist on your platform.</p>
+                        </div>
+                        <button class="btn btn-primary" id="add-cat-btn">
+                            <i class="ph ph-plus"></i> Add Category
+                        </button>
+                    </div>
+
+                    <div class="categories-grid" id="categories-grid">
+                        <!-- JS Injected -->
+                    </div>
+                </section>
+
+                <!-- =============================== CONTENT / MEDIA =============================== -->
+                <section class="admin-panel" id="panel-content">
+                    <div class="section-header">
+                        <h2>🖼️ Content Management</h2>
+                        <p>Upload, replace, or remove images and media content.</p>
+                    </div>
+                    <div class="glass-panel content-upload-zone" id="content-drop-zone">
+                        <i class="ph ph-cloud-arrow-up"></i>
+                        <h3>Drag & Drop Images Here</h3>
+                        <p>Or click to browse files. Supports JPG, PNG, WebP up to 10MB.</p>
+                        <input type="file" id="media-upload-input" multiple accept="image/*" style="display:none;">
+                        <button class="btn btn-primary" id="browse-media-btn">
+                            <i class="ph ph-folder-open"></i> Browse Files
+                        </button>
+                    </div>
+                    <div class="media-grid" id="media-grid">
+                        <!-- JS Injected -->
+                    </div>
+                </section>
+
+                <!-- =============================== USERS =============================== -->
+                <section class="admin-panel" id="panel-users">
+                    <div class="section-header">
+                        <h2>👥 User Management</h2>
+                        <p>View, block, unblock, and manage all registered users.</p>
+                    </div>
+                    <div class="glass-panel" style="padding:1rem 1.5rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+                        <div class="input-with-icon" style="flex:1; min-width:200px;">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input type="text" id="user-search" placeholder="Search users…">
+                        </div>
+                        <select class="admin-select" id="user-status-filter">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="blocked">Blocked</option>
+                        </select>
+                    </div>
+                    <div class="glass-panel table-wrapper" style="padding:0; overflow:hidden;">
+                        <table class="admin-table" id="users-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>User</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Joined</th>
+                                    <th>Trips</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-tbody">
+                                <!-- JS Injected -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- =============================== REVIEWS =============================== -->
+                <section class="admin-panel" id="panel-reviews">
+                    <div class="section-header">
+                        <h2>⭐ Review & Rating Control</h2>
+                        <p>Moderate reviews, remove fake content, and highlight top reviews.</p>
+                    </div>
+                    <div class="reviews-filter-row">
+                        <button class="tag active" data-rfilter="all">All Reviews</button>
+                        <button class="tag" data-rfilter="flagged">🚩 Flagged</button>
+                        <button class="tag" data-rfilter="top">🌟 Top Rated</button>
+                        <button class="tag" data-rfilter="low">⚠️ Low Rated</button>
+                    </div>
+                    <div class="reviews-list" id="reviews-list">
+                        <!-- JS Injected -->
+                    </div>
+                </section>
+
+                <!-- =============================== REPORTS =============================== -->
+                <section class="admin-panel" id="panel-reports">
+                    <div class="section-header">
+                        <h2>🚨 Report Handling</h2>
+                        <p>View and resolve user-reported issues about places and reviews.</p>
+                    </div>
+                    <div class="reports-list" id="reports-list">
+                        <!-- JS Injected -->
+                    </div>
+                </section>
+
+                <!-- =============================== MAP CONTROL =============================== -->
+                <section class="admin-panel" id="panel-mapcontrol">
+                    <div class="section-header">
+                        <h2>📍 Map Control</h2>
+                        <p>Configure the default map view, zoom level, and special markers.</p>
+                    </div>
+                    <div class="map-control-layout">
+                        <div class="glass-panel map-settings-card">
+                            <h4 style="margin-bottom:1.5rem;"><i class="ph ph-sliders"></i> Map Settings</h4>
+                            <div class="form-group">
+                                <label>Default City / Location</label>
+                                <div class="input-with-icon">
+                                    <i class="ph ph-map-pin"></i>
+                                    <input type="text" id="map-default-city" value="Ahmedabad, India">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Default Latitude</label>
+                                <div class="input-with-icon">
+                                    <i class="ph ph-arrows-vertical"></i>
+                                    <input type="number" id="map-def-lat" value="23.0225" step="0.001">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Default Longitude</label>
+                                <div class="input-with-icon">
+                                    <i class="ph ph-arrows-horizontal"></i>
+                                    <input type="number" id="map-def-lng" value="72.5714" step="0.001">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Default Zoom Level (1–18)</label>
+                                <div style="display:flex; align-items:center; gap:1rem;">
+                                    <input type="range" id="map-zoom-slider" min="1" max="18" value="12" style="flex:1;">
+                                    <span id="map-zoom-val" style="font-weight:700; color:var(--accent-primary); min-width:28px; text-align:center;">12</span>
+                                </div>
+                            </div>
+                            <h4 style="margin:1.5rem 0 1rem;"><i class="ph ph-map-pin-simple"></i> Add Special Marker</h4>
+                            <div class="form-group">
+                                <label>Marker Label</label>
+                                <input type="text" class="settings-input" id="marker-label" placeholder="e.g. VIP Zone">
+                            </div>
+                            <div style="display:flex; gap:0.75rem;">
+                                <div class="form-group" style="flex:1;">
+                                    <label>Lat</label>
+                                    <input type="number" class="settings-input" id="marker-lat" placeholder="23.05" step="0.001">
+                                </div>
+                                <div class="form-group" style="flex:1;">
+                                    <label>Lng</label>
+                                    <input type="number" class="settings-input" id="marker-lng" placeholder="72.57" step="0.001">
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:0.75rem; margin-top:0.5rem;">
+                                <button class="btn btn-primary" id="apply-map-settings-btn" style="flex:1;"><i class="ph ph-check"></i> Apply Settings</button>
+                                <button class="btn btn-secondary" id="add-marker-btn" style="flex:1;"><i class="ph ph-plus"></i> Add Marker</button>
+                            </div>
+                        </div>
+                        <div class="glass-panel" id="admin-map-container" style="padding:0; overflow:hidden; border-radius:var(--radius-lg); min-height:450px;"></div>
+                    </div>
+                </section>
+
+                <!-- =============================== SECURITY =============================== -->
+                <section class="admin-panel" id="panel-security">
+                    <div class="section-header">
+                        <h2>🔐 Authentication & Security</h2>
+                        <p>Manage admin credentials, roles, and access control.</p>
+                    </div>
+                    <div class="security-grid">
+                        <div class="glass-panel">
+                            <h4 style="margin-bottom:1.5rem;"><i class="ph ph-lock-key" style="color:var(--accent-primary)"></i> Change Admin Password</h4>
+                            <div class="form-group">
+                                <label>Current Password</label>
+                                <input type="password" class="settings-input" id="curr-pw" placeholder="Current password">
+                            </div>
+                            <div class="form-group">
+                                <label>New Password</label>
+                                <input type="password" class="settings-input" id="new-pw" placeholder="New password (min 8 chars)">
+                            </div>
+                            <div class="form-group">
+                                <label>Confirm New Password</label>
+                                <input type="password" class="settings-input" id="confirm-pw" placeholder="Confirm new password">
+                            </div>
+                            <div class="pass-strength" id="pass-strength" style="display:none;">
+                                <div class="pass-strength-bar" id="pass-strength-bar"></div>
+                                <span id="pass-strength-label">Weak</span>
+                            </div>
+                            <button class="btn btn-primary" id="change-pw-btn" style="margin-top:0.5rem; width:100%;"><i class="ph ph-key"></i> Update Password</button>
+                        </div>
+
+                        <div class="glass-panel">
+                            <h4 style="margin-bottom:1.5rem;"><i class="ph ph-users-three" style="color:var(--accent-secondary)"></i> Role Management</h4>
+                            <div class="roles-list" id="roles-list">
+                                <!-- JS injected -->
+                            </div>
+                            <button class="btn btn-secondary" style="margin-top:1rem; width:100%;" id="add-role-btn"><i class="ph ph-plus"></i> Add Role</button>
+                        </div>
+
+                        <div class="glass-panel">
+                            <h4 style="margin-bottom:1.5rem;"><i class="ph ph-shield" style="color:var(--warning)"></i> Security Settings</h4>
+                            <div class="toggle-row">
+                                <div><span class="toggle-label">Two-Factor Authentication</span><p class="toggle-desc">Extra login security layer</p></div>
+                                <label class="switch"><input type="checkbox" id="toggle-2fa"><span class="slider round"></span></label>
+                            </div>
+                            <div class="toggle-row">
+                                <div><span class="toggle-label">Session Timeout</span><p class="toggle-desc">Auto-logout after 30 min idle</p></div>
+                                <label class="switch"><input type="checkbox" id="toggle-timeout" checked><span class="slider round"></span></label>
+                            </div>
+                            <div class="toggle-row">
+                                <div><span class="toggle-label">Login Audit Log</span><p class="toggle-desc">Track all admin login attempts</p></div>
+                                <label class="switch"><input type="checkbox" id="toggle-audit" checked><span class="slider round"></span></label>
+                            </div>
+                            <div class="toggle-row">
+                                <div><span class="toggle-label">IP Allowlist</span><p class="toggle-desc">Restrict to specific IPs</p></div>
+                                <label class="switch"><input type="checkbox" id="toggle-ip"><span class="slider round"></span></label>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel">
+                            <h4 style="margin-bottom:1.5rem;"><i class="ph ph-clock-countdown" style="color:var(--success)"></i> Recent Activity</h4>
+                            <ul class="activity-log" id="activity-log">
+                                <!-- JS injected -->
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- =============================== API & SETTINGS =============================== -->
+                <section class="admin-panel" id="panel-settings">
+                    <div class="section-header">
+                        <h2>⚙️ API & Settings Control</h2>
+                        <p>Manage API keys, feature toggles, and platform configuration.</p>
+                    </div>
+                    <div class="apicfg-grid">
+                        <div class="glass-panel">
+                            <h4 style="margin-bottom:1.5rem;"><i class="ph ph-key" style="color:var(--accent-primary)"></i> API Keys</h4>
+                            <div class="api-keys-list" id="api-keys-list">
+                                <!-- JS injected -->
+                            </div>
+                            <button class="btn btn-secondary" style="margin-top:1rem; width:100%;" id="gen-key-btn">
+                                <i class="ph ph-plus"></i> Generate New Key
+                            </button>
+                        </div>
+
+                        <div class="glass-panel">
+                            <h4 style="margin-bottom:1.5rem;"><i class="ph ph-toggle-right" style="color:var(--accent-secondary)"></i> Feature Flags</h4>
+                            <div class="toggle-row">
+                                <div><span class="toggle-label">AI Trip Planner</span><p class="toggle-desc">Enable AI itinerary generation</p></div>
+                                <label class="switch"><input type="checkbox" id="ff-ai" checked><span class="slider round"></span></label>
+                            </div>
+                            <div class="toggle-row">
+                                <div><span class="toggle-label">City Explorer</span><p class="toggle-desc">Map-based city exploration</p></div>
+                                <label class="switch"><input type="checkbox" id="ff-explorer" checked><span class="slider round"></span></label>
+                            </div>
+                            <div class="toggle-row">
+                                <div><span class="toggle-label">User Reviews</span><p class="toggle-desc">Allow users to post reviews</p></div>
+                                <label class="switch"><input type="checkbox" id="ff-reviews" checked><span class="slider round"></span></label>
+                            </div>
+                            <div class="toggle-row">
+                                <div><span class="toggle-label">Offline Downloads</span><p class="toggle-desc">Save trips for offline use</p></div>
+                                <label class="switch"><input type="checkbox" id="ff-offline" checked><span class="slider round"></span></label>
+                            </div>
+                            <div class="toggle-row">
+                                <div><span class="toggle-label">Maintenance Mode</span><p class="toggle-desc">Show maintenance page to users</p></div>
+                                <label class="switch"><input type="checkbox" id="ff-maintenance"><span class="slider round"></span></label>
+                            </div>
+                        </div>
+
+                        <div class="glass-panel">
+                            <h4 style="margin-bottom:1.5rem;"><i class="ph ph-gauge" style="color:var(--warning)"></i> Usage Limits</h4>
+                            <div class="usage-setting">
+                                <label>Max API Calls / Day</label>
+                                <div style="display:flex; align-items:center; gap:1rem;">
+                                    <input type="range" id="rate-api" min="100" max="10000" step="100" value="1000" style="flex:1;">
+                                    <span id="rate-api-val" style="font-weight:700; color:var(--accent-primary); min-width:50px;">1,000</span>
+                                </div>
+                            </div>
+                            <div class="usage-setting">
+                                <label>Max AI Trips / User / Day</label>
+                                <div style="display:flex; align-items:center; gap:1rem;">
+                                    <input type="range" id="rate-ai" min="1" max="20" value="5" style="flex:1;">
+                                    <span id="rate-ai-val" style="font-weight:700; color:var(--accent-secondary); min-width:30px;">5</span>
+                                </div>
+                            </div>
+                            <div class="usage-setting">
+                                <label>Max Saved Trips / User</label>
+                                <div style="display:flex; align-items:center; gap:1rem;">
+                                    <input type="range" id="rate-trips" min="5" max="100" value="20" style="flex:1;">
+                                    <span id="rate-trips-val" style="font-weight:700; color:var(--success); min-width:30px;">20</span>
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" id="save-limits-btn" style="margin-top:1.5rem; width:100%;"><i class="ph ph-floppy-disk"></i> Save Limits</button>
+                        </div>
+
+                        <div class="glass-panel">
+                            <h4 style="margin-bottom:1.5rem;"><i class="ph ph-cloud" style="color:var(--success)"></i> System Info</h4>
+                            <div class="sysinfo-row"><span>Server Status</span><span class="status-dot online">● Online</span></div>
+                            <div class="sysinfo-row"><span>Database</span><span class="status-dot online">● Connected</span></div>
+                            <div class="sysinfo-row"><span>API Version</span><strong>v1.4.2</strong></div>
+                            <div class="sysinfo-row"><span>Last Backup</span><strong>Today, 03:00 AM</strong></div>
+                            <div class="sysinfo-row"><span>Total Storage</span><strong>2.4 GB / 10 GB</strong></div>
+                            <div class="storage-bar-wrap">
+                                <div class="storage-bar"><div class="storage-bar-fill" style="width:24%;"></div></div>
+                                <span style="font-size:0.8rem; color:var(--text-muted);">24% used</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div><!-- /admin-scroll -->
+        </main>
+    </div><!-- /admin-app -->
+
+    <!-- ======= PLACE MODAL (Add / Edit) ======= -->
+    <div id="place-modal" class="modal-overlay">
+        <div class="modal-content glass-panel" style="max-width:600px; width:95%;">
+            <div class="modal-header">
+                <h3 id="place-modal-title"><i class="ph ph-map-pin"></i> Add Place</h3>
+                <button class="close-modal-btn" data-close="place-modal"><i class="ph ph-x"></i></button>
+            </div>
+            <form id="place-form" autocomplete="off">
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Place Name <span class="required-star">*</span></label>
+                        <input type="text" class="settings-input" id="pf-name" placeholder="e.g. ABC Cafe" required>
+                    </div>
+                    <div class="form-group">
+                        <label>City <span class="required-star">*</span></label>
+                        <input type="text" class="settings-input" id="pf-city" placeholder="e.g. Ahmedabad" required>
+                    </div>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Category <span class="required-star">*</span></label>
+                        <select class="admin-select w-100" id="pf-category" required>
+                            <option value="">Select category</option>
+                            <option value="attraction">Attraction</option>
+                            <option value="restaurant">Restaurant</option>
+                            <option value="hotel">Hotel</option>
+                            <option value="cafe">Cafe</option>
+                            <option value="temple">Temple</option>
+                            <option value="mall">Mall</option>
+                            <option value="garden">Garden</option>
+                            <option value="museum">Museum</option>
+                            <option value="lake">Lake</option>
+                            <option value="historical">Historical</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Rating (0–5)</label>
+                        <input type="number" class="settings-input" id="pf-rating" min="0" max="5" step="0.1" placeholder="4.5">
+                    </div>
+                </div>
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label>Latitude <span class="required-star">*</span></label>
+                        <input type="number" class="settings-input" id="pf-lat" placeholder="23.0225" step="0.000001" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Longitude <span class="required-star">*</span></label>
+                        <input type="number" class="settings-input" id="pf-lng" placeholder="72.5714" step="0.000001" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Image URL</label>
+                    <input type="url" class="settings-input" id="pf-image" placeholder="https://example.com/image.jpg">
+                </div>
+                <div class="form-group">
+                    <label>Or Upload Image</label>
+                    <div class="file-upload-row">
+                        <input type="file" id="pf-image-file" accept="image/*" style="display:none;">
+                        <button type="button" class="btn btn-secondary" id="pf-image-file-btn"><i class="ph ph-upload"></i> Choose File</button>
+                        <span id="pf-image-filename" style="color:var(--text-muted); font-size:0.85rem;">No file chosen</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea class="settings-input" id="pf-desc" rows="3" placeholder="Brief description of the place…" style="resize:vertical;"></textarea>
+                </div>
+                <input type="hidden" id="pf-edit-id" value="">
+                <div style="display:flex; gap:0.75rem; margin-top:1rem;">
+                    <button type="button" class="btn btn-secondary" data-close="place-modal" style="flex:1;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="flex:2;"><i class="ph ph-floppy-disk"></i> Save Place</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ======= CONFIRM DIALOG ======= -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal-content glass-panel" style="max-width:420px; width:90%; text-align:center;">
+            <div style="font-size:3rem; margin-bottom:0.75rem; color:var(--danger);">⚠️</div>
+            <h3 id="confirm-title">Are you sure?</h3>
+            <p id="confirm-msg" style="color:var(--text-secondary); margin:1rem 0 1.5rem;">This action cannot be undone.</p>
+            <div style="display:flex; gap:0.75rem; justify-content:center;">
+                <button class="btn btn-secondary" id="confirm-cancel-btn" style="flex:1;">Cancel</button>
+                <button class="btn btn-danger" id="confirm-ok-btn" style="flex:1;"><i class="ph ph-trash"></i> Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======= TOAST NOTIFICATION ======= -->
+    <div id="admin-toast" class="admin-toast" style="display:none;"></div>
+
+    <script src="admin.js"></script>
+</body>
+
+</html>

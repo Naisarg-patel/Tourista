@@ -115,44 +115,94 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Profile Save
+    // ==========================================
+    // USER PROFILE SYSTEM
+    // ==========================================
+
+    // -- Profile Toast helper --
+    function profileToast(msg, type = 'success') {
+        const t = document.createElement('div');
+        t.className = 'profile-toast' + (type === 'error' ? ' error' : '');
+        t.innerHTML = `<i class="ph ph-${type === 'error' ? 'x-circle' : 'check-circle'}"></i> ${msg}`;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+
+    // -- Tab switching --
+    const profileTabs = document.querySelectorAll('.profile-tab');
+    const profileContents = document.querySelectorAll('.profile-tab-content');
+    profileTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            profileTabs.forEach(t => t.classList.remove('active'));
+            profileContents.forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            const target = tab.dataset.tab;
+            const content = document.getElementById(target);
+            if (content) content.classList.add('active');
+        });
+    });
+
+    // -- Load & Save Profile --
     const saveProfileBtn = document.getElementById('save-profile-btn');
-    if (saveProfileBtn) {
-        // Load saved profile
-        const savedName = localStorage.getItem('tourista-profile-name');
-        const savedEmail = localStorage.getItem('tourista-profile-email');
+    function loadSavedProfile() {
+        const savedName   = localStorage.getItem('tourista-profile-name');
+        const savedEmail  = localStorage.getItem('tourista-profile-email');
         const savedAvatar = localStorage.getItem('tourista-profile-avatar');
+        const savedBio    = localStorage.getItem('tourista-profile-bio');
+        const savedLoc    = localStorage.getItem('tourista-profile-location');
         if (savedName) {
-            document.getElementById('settings-name').value = savedName;
-            document.getElementById('profile-display-name').textContent = savedName;
-            document.getElementById('sidebar-user-name').textContent = savedName;
+            const nameEl = document.getElementById('settings-name');
+            const nameDisp = document.getElementById('profile-display-name');
+            if (nameEl) nameEl.value = savedName;
+            if (nameDisp) nameDisp.textContent = savedName;
+            const sidebarName = document.getElementById('sidebar-user-name');
+            if (sidebarName) sidebarName.textContent = savedName;
         }
         if (savedEmail) {
-            document.getElementById('settings-email').value = savedEmail;
-            document.getElementById('profile-display-email').textContent = savedEmail;
-            document.getElementById('sidebar-user-email').textContent = savedEmail;
+            const emailEl = document.getElementById('settings-email');
+            const emailDisp = document.getElementById('profile-display-email');
+            if (emailEl) emailEl.value = savedEmail;
+            if (emailDisp) emailDisp.innerHTML = `<i class="ph ph-envelope"></i> ${savedEmail}`;
+            const sidebarEmail = document.getElementById('sidebar-user-email');
+            if (sidebarEmail) sidebarEmail.textContent = savedEmail;
         }
         if (savedAvatar) {
-            document.getElementById('profile-avatar-img').src = savedAvatar;
-            document.getElementById('sidebar-avatar-img').src = savedAvatar;
+            const img = document.getElementById('profile-avatar-img');
+            const sidebarImg = document.getElementById('sidebar-avatar-img');
+            if (img) img.src = savedAvatar;
+            if (sidebarImg) sidebarImg.src = savedAvatar;
         }
+        if (savedBio) { const b = document.getElementById('settings-bio'); if (b) b.value = savedBio; }
+        if (savedLoc) { const l = document.getElementById('settings-location'); if (l) l.value = savedLoc; }
+    }
+    loadSavedProfile();
 
+    if (saveProfileBtn) {
         saveProfileBtn.addEventListener('click', () => {
-            const name = document.getElementById('settings-name').value.trim();
-            const email = document.getElementById('settings-email').value.trim();
-            if (!name) { alert('Please enter a display name.'); return; }
-            localStorage.setItem('tourista-profile-name', name);
+            const name  = (document.getElementById('settings-name')?.value || '').trim();
+            const email = (document.getElementById('settings-email')?.value || '').trim();
+            const bio   = (document.getElementById('settings-bio')?.value || '').trim();
+            const loc   = (document.getElementById('settings-location')?.value || '').trim();
+            if (!name) { profileToast('Please enter a display name.', 'error'); return; }
+            localStorage.setItem('tourista-profile-name',  name);
             localStorage.setItem('tourista-profile-email', email);
-            document.getElementById('profile-display-name').textContent = name;
-            document.getElementById('profile-display-email').textContent = email;
-            document.getElementById('sidebar-user-name').textContent = name;
-            document.getElementById('sidebar-user-email').textContent = email;
+            localStorage.setItem('tourista-profile-bio',   bio);
+            localStorage.setItem('tourista-profile-location', loc);
+            const nameDisp = document.getElementById('profile-display-name');
+            const emailDisp = document.getElementById('profile-display-email');
+            const sidebarName = document.getElementById('sidebar-user-name');
+            const sidebarEmail = document.getElementById('sidebar-user-email');
+            if (nameDisp) nameDisp.textContent = name;
+            if (emailDisp) emailDisp.innerHTML = `<i class="ph ph-envelope"></i> ${email}`;
+            if (sidebarName) sidebarName.textContent = name;
+            if (sidebarEmail) sidebarEmail.textContent = email;
+            profileToast('Profile saved successfully!');
             saveProfileBtn.innerHTML = '<i class="ph ph-check"></i> Saved!';
             setTimeout(() => saveProfileBtn.innerHTML = '<i class="ph ph-floppy-disk"></i> Save Profile', 2000);
         });
     }
 
-    // Avatar upload
+    // -- Avatar upload --
     const avatarUpload = document.getElementById('avatar-upload');
     if (avatarUpload) {
         avatarUpload.addEventListener('change', (e) => {
@@ -161,13 +211,191 @@ document.addEventListener('DOMContentLoaded', () => {
             const reader = new FileReader();
             reader.onload = (ev) => {
                 const dataUrl = ev.target.result;
-                document.getElementById('profile-avatar-img').src = dataUrl;
-                document.getElementById('sidebar-avatar-img').src = dataUrl;
+                const img = document.getElementById('profile-avatar-img');
+                const sidebarImg = document.getElementById('sidebar-avatar-img');
+                if (img) img.src = dataUrl;
+                if (sidebarImg) sidebarImg.src = dataUrl;
                 localStorage.setItem('tourista-profile-avatar', dataUrl);
+                profileToast('Profile photo updated!');
             };
             reader.readAsDataURL(file);
         });
     }
+
+    // -- Update mini stats from saved trips count --
+    function updateProfileStats() {
+        const trips = JSON.parse(localStorage.getItem('tourista-saved-trips') || '[]');
+        const count = trips.length;
+        ['mini-stat-saved', 'stat-saved-trips'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = count;
+        });
+    }
+    updateProfileStats();
+
+    // -- Category preference toggles --
+    document.querySelectorAll('.pref-cat-btn').forEach(btn => {
+        btn.addEventListener('click', () => btn.classList.toggle('active'));
+    });
+
+    // -- Budget preference toggles --
+    document.querySelectorAll('.budget-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.budget-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+    });
+
+    // -- Search radius live update --
+    const radiusInput = document.getElementById('pref-radius');
+    const radiusVal   = document.getElementById('pref-radius-val');
+    if (radiusInput && radiusVal) {
+        radiusInput.addEventListener('input', () => {
+            radiusVal.textContent = radiusInput.value + ' km';
+        });
+    }
+
+    // -- Save Preferences --
+    const savePrefsBtn = document.getElementById('save-prefs-btn');
+    if (savePrefsBtn) {
+        savePrefsBtn.addEventListener('click', () => {
+            const activeCats = [...document.querySelectorAll('.pref-cat-btn.active')].map(b => b.dataset.cat);
+            const budget = document.querySelector('.budget-btn.active')?.dataset.budget || 'budget';
+            const radius = document.getElementById('pref-radius')?.value || 15;
+            const lang   = document.getElementById('pref-language')?.value || 'en';
+            localStorage.setItem('tourista-prefs', JSON.stringify({ cats: activeCats, budget, radius, lang }));
+            profileToast('Preferences saved!');
+            savePrefsBtn.innerHTML = '<i class="ph ph-check"></i> Saved!';
+            setTimeout(() => savePrefsBtn.innerHTML = '<i class="ph ph-floppy-disk"></i> Save Preferences', 2000);
+        });
+        // Load saved prefs
+        const savedPrefs = JSON.parse(localStorage.getItem('tourista-prefs') || 'null');
+        if (savedPrefs) {
+            if (savedPrefs.cats) {
+                document.querySelectorAll('.pref-cat-btn').forEach(btn => {
+                    btn.classList.toggle('active', savedPrefs.cats.includes(btn.dataset.cat));
+                });
+            }
+            if (savedPrefs.budget) {
+                document.querySelectorAll('.budget-btn').forEach(b => {
+                    b.classList.toggle('active', b.dataset.budget === savedPrefs.budget);
+                });
+            }
+            if (savedPrefs.radius && radiusInput) {
+                radiusInput.value = savedPrefs.radius;
+                if (radiusVal) radiusVal.textContent = savedPrefs.radius + ' km';
+            }
+            if (savedPrefs.lang) {
+                const langSel = document.getElementById('pref-language');
+                if (langSel) langSel.value = savedPrefs.lang;
+            }
+        }
+    }
+
+    // -- Password strength (security tab) --
+    const userNewPw = document.getElementById('user-new-pw');
+    if (userNewPw) {
+        userNewPw.addEventListener('input', () => {
+            const pw = userNewPw.value;
+            const wrap = document.getElementById('user-pass-strength');
+            const fill = document.getElementById('user-strength-fill');
+            const label = document.getElementById('user-strength-label');
+            if (!wrap || !fill || !label) return;
+            wrap.style.display = pw.length > 0 ? 'flex' : 'none';
+            let score = 0;
+            if (pw.length >= 8) score++;
+            if (/[A-Z]/.test(pw)) score++;
+            if (/[0-9]/.test(pw)) score++;
+            if (/[^A-Za-z0-9]/.test(pw)) score++;
+            const pct = (score / 4) * 100;
+            const colors = ['#ef4444', '#f97316', '#f59e0b', '#10b981'];
+            const labels = ['Weak', 'Fair', 'Good', 'Strong'];
+            fill.style.width = pct + '%';
+            fill.style.background = colors[score - 1] || '#ef4444';
+            label.textContent = labels[score - 1] || 'Weak';
+            label.style.color = colors[score - 1] || '#ef4444';
+        });
+    }
+
+    // -- Change password action --
+    const userChangePwBtn = document.getElementById('user-change-pw-btn');
+    if (userChangePwBtn) {
+        userChangePwBtn.addEventListener('click', () => {
+            const np = document.getElementById('user-new-pw')?.value || '';
+            const cp = document.getElementById('user-confirm-pw')?.value || '';
+            if (!np || np.length < 8) { profileToast('Password must be at least 8 characters.', 'error'); return; }
+            if (np !== cp) { profileToast('Passwords do not match.', 'error'); return; }
+            profileToast('Password updated successfully!');
+            ['user-curr-pw','user-new-pw','user-confirm-pw'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const wrap = document.getElementById('user-pass-strength');
+            if (wrap) wrap.style.display = 'none';
+        });
+    }
+
+    // -- Export My Data --
+    const exportDataBtn = document.getElementById('export-data-btn');
+    if (exportDataBtn) {
+        exportDataBtn.addEventListener('click', () => {
+            const data = {
+                profile: {
+                    name: localStorage.getItem('tourista-profile-name'),
+                    email: localStorage.getItem('tourista-profile-email'),
+                    bio: localStorage.getItem('tourista-profile-bio'),
+                    location: localStorage.getItem('tourista-profile-location'),
+                },
+                preferences: JSON.parse(localStorage.getItem('tourista-prefs') || '{}'),
+                savedTrips: JSON.parse(localStorage.getItem('tourista-saved-trips') || '[]'),
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'tourista-my-data.json';
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+            profileToast('Data exported successfully!');
+        });
+    }
+
+    // -- Clear Trips --
+    const clearTripsBtn = document.getElementById('clear-trips-btn');
+    if (clearTripsBtn) {
+        clearTripsBtn.addEventListener('click', () => {
+            if (!confirm('Are you sure you want to clear all saved trips? This cannot be undone.')) return;
+            localStorage.removeItem('tourista-saved-trips');
+            updateProfileStats();
+            profileToast('Saved trips cleared.');
+        });
+    }
+
+    // -- Logout placeholder --
+    const userLogoutBtn = document.getElementById('user-logout-btn');
+    if (userLogoutBtn) {
+        userLogoutBtn.addEventListener('click', () => {
+            if (!confirm('Sign out from Tourista?')) return;
+            profileToast('Signed out. Redirecting...');
+            setTimeout(() => location.reload(), 1500);
+        });
+    }
+
+    // -- Add visited city placeholder --
+    const addVisitedBtn = document.getElementById('add-visited-city-btn');
+    if (addVisitedBtn) {
+        addVisitedBtn.addEventListener('click', () => {
+            const city = prompt('Enter the city name you visited:');
+            if (!city || !city.trim()) return;
+            const grid = document.getElementById('visited-cities-grid');
+            const card = document.createElement('div');
+            card.className = 'visited-city-card';
+            card.innerHTML = `<div class="vcc-flag">${city.trim().substring(0,6)}</div><div class="vcc-info"><strong>${city.trim()}</strong><span>Just added</span></div><div class="vcc-date">Mar 2026</div>`;
+            grid.insertBefore(card, addVisitedBtn);
+            profileToast(`${city.trim()} added to visited places!`);
+        });
+    }
+
+
 
     // ==========================================
     // DASHBOARD DATA
