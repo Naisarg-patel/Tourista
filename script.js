@@ -13,7 +13,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const citiesGrid = document.querySelector('.cities-grid');
     const eventList = document.querySelector('.event-list');
     const savedTripsContainer = document.getElementById('saved-trips-list');
-    const API_BASE = 'http://localhost:3000/api';
+    const API_BASE = (window.TOURISTA_API_BASE || 'http://localhost:3000/api').replace(/\/$/, '');
+
+    function apiErrorToast(msg) {
+        const t = document.createElement('div');
+        t.className = 'profile-toast error';
+        t.innerHTML = `<i class="ph ph-x-circle"></i> ${msg}`;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3500);
+    }
 
     async function apiFetch(url, options = {}) {
         const token = localStorage.getItem('tourista-auth-token');
@@ -21,7 +29,34 @@ document.addEventListener('DOMContentLoaded', () => {
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
-        return fetch(url, { ...options, headers });
+
+        if (!navigator.onLine) {
+            const msg = 'Offline: check your internet connection.';
+            console.warn(msg);
+            apiErrorToast(msg);
+            throw new Error(msg);
+        }
+
+        try {
+            const response = await fetch(url, { ...options, headers });
+            if (!response.ok) {
+                const text = await response.text().catch(() => '');
+                const message = `API error ${response.status} ${response.statusText}${text ? ` - ${text}` : ''}`;
+                console.warn(message);
+                apiErrorToast('Server error while contacting API.');
+                const e = new Error(message);
+                e.response = response;
+                throw e;
+            }
+            return response;
+        } catch (err) {
+            console.error(`[apiFetch] ${url}`, err);
+            const msg = err.message.includes('Failed to fetch') || err.message.includes('Connection refused')
+                ? 'Could not connect to API server (localhost:3000). Is backend running?'
+                : err.message;
+            apiErrorToast(msg);
+            throw new Error(msg);
+        }
     }
 
 
