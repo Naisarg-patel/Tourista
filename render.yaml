@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: tourista-app
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DB_PATH
+        value: /data/tourista.db
+      - key: JWT_SECRET
+        generateValue: true
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1

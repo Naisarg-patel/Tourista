@@ -1,0 +1,4 @@
+node_modules/
+tourista.db
+.env
+.DS_Store
