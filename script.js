@@ -15,6 +15,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTripsContainer = document.getElementById('saved-trips-list');
     const API_BASE = 'http://localhost:3000/api';
 
+    async function apiFetch(url, options = {}) {
+        const token = localStorage.getItem('tourista-auth-token');
+        const headers = { ...options.headers };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        return fetch(url, { ...options, headers });
+    }
+
+
     let mainMap = null;
     let routingMap = null;
     let routingControl = null;
@@ -144,36 +154,52 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // -- Load & Save Profile --
     const saveProfileBtn = document.getElementById('save-profile-btn');
-    function loadSavedProfile() {
-        const savedName   = localStorage.getItem('tourista-profile-name');
-        const savedEmail  = localStorage.getItem('tourista-profile-email');
-        const savedAvatar = localStorage.getItem('tourista-profile-avatar');
-        const savedBio    = localStorage.getItem('tourista-profile-bio');
-        const savedLoc    = localStorage.getItem('tourista-profile-location');
-        if (savedName) {
-            const nameEl = document.getElementById('settings-name');
-            const nameDisp = document.getElementById('profile-display-name');
-            if (nameEl) nameEl.value = savedName;
-            if (nameDisp) nameDisp.textContent = savedName;
-            const sidebarName = document.getElementById('sidebar-user-name');
-            if (sidebarName) sidebarName.textContent = savedName;
+        async function loadSavedProfile() {
+        try {
+            const res = await apiFetch(`${API_BASE}/users/profile`);
+            if (res.ok) {
+                const data = await res.json();
+                const user = data.data;
+
+                const savedName = user.name;
+                const savedEmail = user.email;
+                window.currentProfileUserId = user.id;
+
+                const savedAvatar = localStorage.getItem(`tourista-profile-avatar-${user.id}`) || localStorage.getItem('tourista-profile-avatar');
+                const savedBio = localStorage.getItem(`tourista-profile-bio-${user.id}`) || localStorage.getItem('tourista-profile-bio');
+                const savedLoc = localStorage.getItem(`tourista-profile-location-${user.id}`) || localStorage.getItem('tourista-profile-location');
+
+                if (savedName) {
+                    const nameEl = document.getElementById('settings-name');
+                    const nameDisp = document.getElementById('profile-display-name');
+                    if (nameEl) nameEl.value = savedName;
+                    if (nameDisp) nameDisp.textContent = savedName;
+                    const sidebarName = document.getElementById('sidebar-user-name');
+                    if (sidebarName) sidebarName.textContent = savedName;
+                }
+                if (savedEmail) {
+                    const emailEl = document.getElementById('settings-email');
+                    const emailDisp = document.getElementById('profile-display-email');
+                    if (emailEl) emailEl.value = savedEmail;
+                    if (emailDisp) emailDisp.innerHTML = `<i class="ph ph-envelope"></i> ${savedEmail}`;
+                    const sidebarEmail = document.getElementById('sidebar-user-email');
+                    if (sidebarEmail) sidebarEmail.textContent = savedEmail;
+                }
+                if (savedAvatar) {
+                    const img = document.getElementById('profile-avatar-img');
+                    const sidebarImg = document.getElementById('sidebar-avatar-img');
+                    if (img) img.src = savedAvatar;
+                    if (sidebarImg) sidebarImg.src = savedAvatar;
+                }
+                if (savedBio) { const b = document.getElementById('settings-bio'); if (b) b.value = savedBio; }
+                if (savedLoc) { const l = document.getElementById('settings-location'); if (l) l.value = savedLoc; }
+
+            } else {
+                console.warn('Could not fetch user profile from API, fallback to localStorage maybe.');
+            }
+        } catch (err) {
+            console.error('Error fetching profile', err);
         }
-        if (savedEmail) {
-            const emailEl = document.getElementById('settings-email');
-            const emailDisp = document.getElementById('profile-display-email');
-            if (emailEl) emailEl.value = savedEmail;
-            if (emailDisp) emailDisp.innerHTML = `<i class="ph ph-envelope"></i> ${savedEmail}`;
-            const sidebarEmail = document.getElementById('sidebar-user-email');
-            if (sidebarEmail) sidebarEmail.textContent = savedEmail;
-        }
-        if (savedAvatar) {
-            const img = document.getElementById('profile-avatar-img');
-            const sidebarImg = document.getElementById('sidebar-avatar-img');
-            if (img) img.src = savedAvatar;
-            if (sidebarImg) sidebarImg.src = savedAvatar;
-        }
-        if (savedBio) { const b = document.getElementById('settings-bio'); if (b) b.value = savedBio; }
-        if (savedLoc) { const l = document.getElementById('settings-location'); if (l) l.value = savedLoc; }
     }
     loadSavedProfile();
 
@@ -184,10 +210,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const bio   = (document.getElementById('settings-bio')?.value || '').trim();
             const loc   = (document.getElementById('settings-location')?.value || '').trim();
             if (!name) { profileToast('Please enter a display name.', 'error'); return; }
-            localStorage.setItem('tourista-profile-name',  name);
-            localStorage.setItem('tourista-profile-email', email);
-            localStorage.setItem('tourista-profile-bio',   bio);
-            localStorage.setItem('tourista-profile-location', loc);
+            localStorage.setItem(`tourista-profile-name-${window.currentProfileUserId}`, name);
+            localStorage.setItem(`tourista-profile-email-${window.currentProfileUserId}`, email);
+            localStorage.setItem(`tourista-profile-bio-${window.currentProfileUserId}`, bio);
+            localStorage.setItem(`tourista-profile-location-${window.currentProfileUserId}`, loc);
             const nameDisp = document.getElementById('profile-display-name');
             const emailDisp = document.getElementById('profile-display-email');
             const sidebarName = document.getElementById('sidebar-user-name');
@@ -215,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const sidebarImg = document.getElementById('sidebar-avatar-img');
                 if (img) img.src = dataUrl;
                 if (sidebarImg) sidebarImg.src = dataUrl;
-                localStorage.setItem('tourista-profile-avatar', dataUrl);
+                localStorage.setItem(`tourista-profile-avatar-${window.currentProfileUserId}`, dataUrl);
                 profileToast('Profile photo updated!');
             };
             reader.readAsDataURL(file);
@@ -370,13 +396,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // -- Logout placeholder --
+    // -- Logout Action --
     const userLogoutBtn = document.getElementById('user-logout-btn');
     if (userLogoutBtn) {
         userLogoutBtn.addEventListener('click', () => {
             if (!confirm('Sign out from Tourista?')) return;
-            profileToast('Signed out. Redirecting...');
-            setTimeout(() => location.reload(), 1500);
+            localStorage.removeItem('tourista-auth-token');
+            localStorage.removeItem('tourista-auth-date');
+            profileToast('Signed out. Redirecting to login...');
+            setTimeout(() => { window.location.href = 'login.html'; }, 1000);
         });
     }
 
@@ -403,7 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadDashboardData() {
         if (!citiesGrid || !eventList) return;
         try {
-            const citiesRes = await fetch(`${API_BASE}/cities`);
+            const citiesRes = await apiFetch(`${API_BASE}/cities`);
             const citiesData = await citiesRes.json();
             if (citiesData.data && citiesData.data.length > 0) {
                 let html = '';
@@ -413,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 html += `<div class="city-card search-custom"><div class="search-custom-inner"><div class="icon-wrapper"><i class="ph ph-globe-hemisphere-east"></i></div><h3>Any City</h3><p>Search globally</p><button class="btn btn-secondary">Search <i class="ph ph-magnifying-glass"></i></button></div></div>`;
                 citiesGrid.innerHTML = html;
             }
-            const eventsRes = await fetch(`${API_BASE}/events`);
+            const eventsRes = await apiFetch(`${API_BASE}/events`);
             const eventsData = await eventsRes.json();
             if (eventsData.data && eventsData.data.length > 0) {
                 let html = '';
@@ -633,7 +661,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!savedTripsContainer) return;
         savedTripsContainer.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Loading trips...</p></div>';
         try {
-            const res = await fetch(`${API_BASE}/trips`);
+            const res = await apiFetch(`${API_BASE}/trips`);
             const data = await res.json();
 
             if (!data.data || data.data.length === 0) {
@@ -711,7 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
             deleteBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
             deleteBtn.disabled = true;
             try {
-                const res = await fetch(`${API_BASE}/trips/${tripId}`, { method: 'DELETE' });
+                const res = await apiFetch(`${API_BASE}/trips/${tripId}`, { method: 'DELETE' });
                 if (res.ok) {
                     const card = document.getElementById(`trip-card-${tripId}`);
                     if (card) {
@@ -1013,7 +1041,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveTripBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Saving...';
                 try {
                     const priceEst = Math.floor(Math.random() * 5000) + 500;
-                    const res = await fetch(`${API_BASE}/trips`, {
+                    const res = await apiFetch(`${API_BASE}/trips`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -1165,7 +1193,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const btn = e.target.closest('button');
                         btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Saving...';
                         btn.disabled = true;
-                        await fetch(`${API_BASE}/trips`, {
+                        await apiFetch(`${API_BASE}/trips`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(tripData)
@@ -1251,7 +1279,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const orig = saveNotesBtn.innerHTML;
             saveNotesBtn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Saving...';
             try {
-                const res = await fetch(`${API_BASE}/trips/${tripId}`, {
+                const res = await apiFetch(`${API_BASE}/trips/${tripId}`, {
                     method: 'PUT', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ itinerary: newNotes })
                 });
@@ -1297,7 +1325,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     async function loadTripRouteOnMainMap(tripId) {
         try {
-            const res = await fetch(`${API_BASE}/trips/${tripId}`);
+            const res = await apiFetch(`${API_BASE}/trips/${tripId}`);
             const data = await res.json();
             const trip = data.data;
             if (trip && trip.route_data && mainMap) {
@@ -1357,7 +1385,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     async function downloadOfflineTrip(tripId) {
         try {
-            const res = await fetch(`${API_BASE}/trips/${tripId}`);
+            const res = await apiFetch(`${API_BASE}/trips/${tripId}`);
             const data = await res.json();
             const trip = data.data;
             if (!trip) return;

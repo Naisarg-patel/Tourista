@@ -44,6 +44,11 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     console.error('Error creating trips table:', err.message);
                 } else {
                     // Add new columns if they don't exist (for existing databases)
+                    db.run(`ALTER TABLE trips ADD COLUMN userId INTEGER`, (err) => {
+                        if (err && !err.message.includes('duplicate column name')) {
+                            console.error('Error adding userId column:', err.message);
+                        }
+                    });
                     db.run(`ALTER TABLE trips ADD COLUMN itinerary TEXT`, (err) => {
                         if (err && !err.message.includes('duplicate column name')) {
                             console.error('Error adding itinerary column:', err.message);
@@ -61,6 +66,40 @@ const db = new sqlite3.Database(dbPath, (err) => {
                     });
                 }
             });
+
+            // Users Table
+            db.run(`CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                favorites TEXT DEFAULT '[]',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`);
+
+            // Places Table
+            db.run(`CREATE TABLE IF NOT EXISTS places (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                type TEXT,
+                rating REAL,
+                latitude REAL,
+                longitude REAL,
+                address TEXT,
+                image TEXT
+            )`);
+
+            // Reviews Table
+            db.run(`CREATE TABLE IF NOT EXISTS reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                userId INTEGER,
+                placeId INTEGER,
+                rating INTEGER,
+                comment TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(userId) REFERENCES users(id),
+                FOREIGN KEY(placeId) REFERENCES places(id)
+            )`);
 
             // Check if cities are seeded
             db.get("SELECT COUNT(*) as count FROM cities", (err, row) => {

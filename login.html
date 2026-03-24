@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tourista | Login & Register</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <link rel="stylesheet" href="styles.css">
+    
+    <style>
+        body.auth-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-image: linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.9)), url('https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?q=80&w=2021&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .auth-container {
+            width: 100%;
+            max-width: 480px;
+            padding: 2.5rem;
+            animation: slideUp 0.5s ease-out;
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            color: white;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .auth-header .logo {
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 2.5rem;
+            color: var(--accent-primary, #6366f1);
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+        }
+
+        .auth-header p {
+            color: #94a3b8;
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 0.35rem;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .auth-tab:hover {
+            color: white;
+        }
+
+        .auth-tab.active {
+            background: var(--accent-primary, #6366f1);
+            color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #cbd5e1;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .input-with-icon {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-with-icon i {
+            position: absolute;
+            left: 1rem;
+            color: #64748b;
+            font-size: 1.25rem;
+            transition: color 0.3s ease;
+        }
+
+        .input-with-icon input {
+            width: 100%;
+            padding: 12px 16px 12px 3rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: white;
+            font-family: inherit;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        .input-with-icon input:focus {
+            outline: none;
+            border-color: var(--accent-primary, #6366f1);
+            background: rgba(15, 23, 42, 0.8);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .input-with-icon input:focus + i,
+        .input-with-icon input:focus ~ i {
+            color: var(--accent-primary, #6366f1);
+        }
+
+        .auth-divider {
+            display: flex;
+            align-items: center;
+            margin: 1.5rem 0;
+            color: #64748b;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .auth-divider::before, .auth-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .auth-divider::before { margin-right: 1rem; }
+        .auth-divider::after { margin-left: 1rem; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 12px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: var(--accent-primary, #6366f1);
+            color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-google {
+            background: white;
+            color: #1e293b;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-google:hover {
+            background: #f8f9fa;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-google img {
+            width: 22px;
+            height: 22px;
+        }
+
+        .auth-footer {
+            margin-top: 1.75rem;
+            text-align: center;
+            font-size: 0.875rem;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+
+        .auth-footer a {
+            color: var(--accent-primary, #6366f1);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .auth-footer a:hover {
+            color: #818cf8;
+            text-decoration: underline;
+        }
+
+        .forgot-password {
+            color: var(--accent-primary, #6366f1);
+            font-size: 0.875rem;
+            text-decoration: none;
+            font-weight: 500;
+            display: inline-block;
+            margin-top: -0.5rem;
+            margin-bottom: 1.25rem;
+            transition: color 0.3s ease;
+        }
+
+        .forgot-password:hover {
+            color: #818cf8;
+            text-decoration: underline;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="dark-theme auth-page">
+    
+    <div class="auth-container">
+        <div class="auth-header">
+            <div class="logo">
+                <i class="ph-fill ph-compass"></i>
+                <h2 style="color: white; margin: 0;">Tourista</h2>
+            </div>
+            <p>Your passport to unforgettable journeys</p>
+        </div>
+
+        <div class="auth-tabs">
+            <button class="auth-tab active" data-target="login-form">Login</button>
+            <button class="auth-tab" data-target="register-form">Register</button>
+        </div>
+
+        <!-- Login Form -->
+        <form class="auth-form active" id="login-form">
+            <div class="form-group">
+                <label>Email Address</label>
+                <div class="input-with-icon">
+                    <i class="ph ph-envelope"></i>
+                    <input type="email" id="login-email" placeholder="Enter your email" required>
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 0.5rem;">
+                <label>Password</label>
+                <div class="input-with-icon">
+                    <i class="ph ph-lock-key"></i>
+                    <input type="password" id="login-password" placeholder="Enter your password" required>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <a href="#" class="forgot-password">Forgot Password?</a>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <span>Sign In</span>
+                <i class="ph ph-sign-in" style="font-size: 1.2rem;"></i>
+            </button>
+        </form>
+
+        <!-- Register Form -->
+        <form class="auth-form" id="register-form">
+            <div class="form-group">
+                <label>Full Name</label>
+                <div class="input-with-icon">
+                    <i class="ph ph-user"></i>
+                    <input type="text" id="register-name" placeholder="Enter your full name" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Email Address</label>
+                <div class="input-with-icon">
+                    <i class="ph ph-envelope"></i>
+                    <input type="email" id="register-email" placeholder="Enter your email" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <div class="input-with-icon">
+                    <i class="ph ph-lock-key"></i>
+                    <input type="password" id="register-password" placeholder="Create a password" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <span>Create Account</span>
+                <i class="ph ph-user-plus" style="font-size: 1.2rem;"></i>
+            </button>
+        </form>
+
+        <div class="auth-divider">OR</div>
+
+        <!-- Login with Google -->
+        <button class="btn btn-google" id="google-login-btn" type="button">
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google Logo">
+            Continue with Google
+        </button>
+
+        <div class="auth-footer">
+            <p>By continuing, you agree to Tourista's <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.auth-tab');
+            const forms = document.querySelectorAll('.auth-form');
+
+            // Tab Switching functionality
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Remove active from all
+                    tabs.forEach(t => t.classList.remove('active'));
+                    forms.forEach(f => f.classList.remove('active'));
+
+                    // Add active to clicked
+                    tab.classList.add('active');
+                    const targetId = tab.getAttribute('data-target');
+                    document.getElementById(targetId).classList.add('active');
+                });
+            });
+
+            function handleSuccessfulAuth(token, user) {
+                localStorage.setItem('tourista-auth-token', token);
+                localStorage.setItem('tourista-auth-date', Date.now().toString());
+                localStorage.setItem('tourista-user-data', JSON.stringify(user));
+                window.location.href = 'index.html';
+            }
+
+            // Login
+            document.getElementById('login-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                
+                try {
+                    const res = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        handleSuccessfulAuth(data.token, data.user);
+                    } else {
+                        alert(data.error || 'Login failed');
+                    }
+                } catch (e) {
+                    alert('Network error during login');
+                }
+            });
+
+            // Register
+            document.getElementById('register-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = document.getElementById('register-name').value;
+                const email = document.getElementById('register-email').value;
+                const password = document.getElementById('register-password').value;
+                
+                if (password.length < 6) {
+                    alert('Password must be at least 6 characters long');
+                    return;
+                }
+
+                try {
+                    const res = await fetch('/api/auth/signup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, email, password })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        alert('Registration successful! Please log in to continue.');
+                        document.querySelector('[data-target="login-form"]').click();
+                    } else {
+                        alert(data.error || 'Registration failed');
+                    }
+                } catch (e) {
+                    alert('Network error during registration');
+                }
+            });
+
+            // Mock Google Login
+            document.getElementById('google-login-btn').addEventListener('click', () => {
+                // Since this is UI, just mock the behavior
+                setTimeout(() => {
+                    handleSuccessfulAuth();
+                }, 500);
+            });
+        });
+    </script>
+</body>
+</html>
