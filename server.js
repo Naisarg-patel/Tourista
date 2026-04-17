@@ -245,7 +245,7 @@ app.get('/api/geocode', async (req, res) => {
     try {
         const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`;
         const geoRes = await fetch(nominatimUrl, {
-            headers: { 'User-Agent': 'TouristaApp/1.0 (+https://example.com)' }
+            headers: { 'User-Agent': 'Tourista/1.0 (+http://localhost:3000; tourista-app)' }
         });
 
         if (!geoRes.ok) {
@@ -268,7 +268,7 @@ app.get('/api/reverse', async (req, res) => {
     try {
         const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=${encodeURIComponent(zoom)}`;
         const revRes = await fetch(nominatimUrl, {
-            headers: { 'User-Agent': 'TouristaApp/1.0 (+https://example.com)' }
+            headers: { 'User-Agent': 'Tourista/1.0 (+http://localhost:3000; tourista-app)' }
         });
 
         if (!revRes.ok) {
@@ -284,45 +284,179 @@ app.get('/api/reverse', async (req, res) => {
     }
 });
 
-// Overpass proxy for OpenStreetMap queries
+// ─── Overpass: in-memory result cache (5-minute TTL) ───────────────────────
+const overpassCache = new Map();
+const OVERPASS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function overpassCacheGet(key) {
+    const entry = overpassCache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > OVERPASS_CACHE_TTL) { overpassCache.delete(key); return null; }
+    return entry.data;
+}
+function overpassCacheSet(key, data) {
+    overpassCache.set(key, { data, ts: Date.now() });
+}
+
+// ─── Overpass: race all mirrors in parallel ──────────────────────────────────
+const OVERPASS_ENDPOINTS = [
+    'https://overpass-api.de/api/interpreter',
+    'https://lz4.overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+    // overpass.osm.ch removed — returns broken responses (timestamp "113539", 0 elements)
+];
+
+async function fetchOneOverpass(endpoint, query, timeoutMs) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+        const r = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'User-Agent': 'Tourista/1.0 (tourista-app)',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json'
+            },
+            body: 'data=' + encodeURIComponent(query),  // standard Overpass POST format
+            signal: ctrl.signal
+        });
+        clearTimeout(timer);
+        if (!r.ok) throw new Error(`HTTP ${r.status} from ${endpoint}`);
+
+        // Read as text first — Overpass can return HTTP 200 with XML errors
+        const text = await r.text();
+        const trimmed = text.trimStart();
+
+        // If response starts with '<' it's XML (error page), not JSON
+        if (trimmed.startsWith('<')) {
+            throw new Error(`XML response from ${endpoint} (likely rate-limited or error page)`);
+        }
+
+        // Guard: empty / whitespace response
+        if (!trimmed) throw new Error(`Empty response from ${endpoint}`);
+
+        const data = JSON.parse(text);
+
+        // Validate: reject mirrors with broken/stale DB (bad timestamp like "113539")
+        const ts = data.osm3s && data.osm3s.timestamp_osm_base;
+        if (ts && !/^\d{4}-\d{2}/.test(ts)) {
+            throw new Error(`Broken mirror ${endpoint} — invalid timestamp: ${ts}`);
+        }
+
+        return data;
+    } catch (err) {
+        clearTimeout(timer);
+        throw err;
+    }
+}
+
+
+// Overpass proxy – races all mirrors; returns first successful response
 app.post('/api/overpass', express.json(), async (req, res) => {
     const { query } = req.body;
     if (!query) return res.status(400).json({ error: 'Query is required' });
 
-    const endpoints = [
-        'https://overpass-api.de/api/interpreter',
-        'https://lz4.overpass-api.de/api/interpreter',
-        'https://overpass.kumi.systems/api/interpreter',
-        'https://overpass.osm.ch/api/interpreter'
-    ];
+    console.log(`[Overpass] Query preview: ${query.replace(/\s+/g,' ').slice(0, 200)}`);
 
-    let lastErrorDetails = '';
-
-    for (const endpoint of endpoints) {
-        try {
-            const overpassRes = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'User-Agent': 'TouristaApp/1.0 (+https://example.com)' },
-                body: query,
-                signal: AbortSignal.timeout(10000) // Lowered to 10s per mirror to fail fast
-            });
-
-            if (overpassRes.ok) {
-                const data = await overpassRes.json();
-                return res.json(data);
-            } else {
-                lastErrorDetails = await overpassRes.text().catch(() => '');
-                console.warn(`Overpass mirror ${endpoint} returned ${overpassRes.status}`);
-            }
-        } catch (err) {
-            console.warn(`Overpass mirror ${endpoint} failed:`, err.message);
-            lastErrorDetails = err.message;
-        }
+    // Serve from cache if available
+    const cached = overpassCacheGet(query);
+    if (cached) {
+        console.log(`[Overpass] Cache hit — ${cached.elements ? cached.elements.length : 0} elements`);
+        return res.json(cached);
     }
 
-    console.error('All Overpass proxies failed. Last error:', lastErrorDetails);
-    res.status(502).json({ error: 'Overpass fetch failed across all mirrors', details: lastErrorDetails });
+    // Race all mirrors – first to succeed wins
+    const PER_MIRROR_TIMEOUT = 10000; // 10 s each
+    const promises = OVERPASS_ENDPOINTS.map(ep =>
+        fetchOneOverpass(ep, query, PER_MIRROR_TIMEOUT)
+            .then(data => ({ ep, data }))
+    );
+
+    try {
+        const { ep, data } = await Promise.any(promises);
+        const count = data.elements ? data.elements.length : 0;
+        console.log(`[Overpass] Success from ${ep} — ${count} elements`);
+        // Only cache non-empty responses
+        if (count > 0) overpassCacheSet(query, data);
+        return res.json(data);
+    } catch (aggErr) {
+        // Promise.any rejects with AggregateError when ALL promises fail
+        const details = aggErr.errors ? aggErr.errors.map(e => e.message).join(' | ') : String(aggErr);
+        console.error('[Overpass] All mirrors failed:', details);
+        // Returning 200 OK with an error payload to prevent red console errors in browser
+        return res.json({ error: 'All Overpass mirrors failed or timed out', details });
+    }
 });
+
+// Health check for Overpass mirrors
+app.get('/api/overpass/health', async (req, res) => {
+    const testQuery = '[out:json][timeout:5];node["amenity"="bench"](around:100,51.5,0.0);out 1;';
+    const results = await Promise.allSettled(
+        OVERPASS_ENDPOINTS.map(ep =>
+            fetchOneOverpass(ep, testQuery, 6000).then(() => ({ ep, ok: true })).catch(e => ({ ep, ok: false, err: e.message }))
+        )
+    );
+    res.json(results.map(r => r.value || r.reason));
+});
+
+// ─── Geo Fallback (Wikipedia + Nominatim) ────────────────────────────────────
+// Used when Overpass mirrors are down. Returns basic fallback data.
+const fallbackCache = new Map();
+
+app.get('/api/nearby-places', async (req, res) => {
+    const { lat, lon, category = 'attraction' } = req.query;
+    if (!lat || !lon) return res.status(400).json({ error: 'lat and lon required' });
+
+    const cacheKey = `${parseFloat(lat).toFixed(3)},${parseFloat(lon).toFixed(3)}-${category}`;
+    const cached = fallbackCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < 10 * 60 * 1000) {
+        console.log('[Fallback] Cache hit for', cacheKey);
+        return res.json(cached.data);
+    }
+
+    try {
+        let elements = [];
+        const isAttraction = ['all', 'attraction', 'historical', 'museum'].includes(category);
+        
+        if (isAttraction) {
+            // Wikipedia GeoSearch for notable landmarks
+            const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${lat}|${lon}&gsradius=10000&gslimit=30&format=json&origin=*`;
+            const r = await fetch(wikiUrl, { headers: { 'User-Agent': 'Tourista/1.0' }, signal: AbortSignal.timeout(8000) });
+            if (r.ok) {
+                const data = await r.json();
+                const places = (data.query && data.query.geosearch) || [];
+                elements = places.map(p => ({
+                    type: 'node', id: p.pageid, lat: p.lat, lon: p.lon,
+                    tags: { name: p.title, tourism: 'attraction', wikipedia: `en:${p.title}`, description: 'From Wikipedia GeoSearch' }
+                }));
+            }
+        } else {
+            // Nominatim Free Text Search for generic businesses (cafe, mall, restaurant)
+            const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(category)}+near+${lat},${lon}&format=json&limit=25`;
+            const r = await fetch(nomUrl, { headers: { 'User-Agent': 'Tourista/1.0' }, signal: AbortSignal.timeout(8000) });
+            if (r.ok) {
+                const data = await r.json();
+                elements = data.map(p => ({
+                    type: p.osm_type || 'node', id: p.osm_id || Math.floor(Math.random()*100000), 
+                    lat: parseFloat(p.lat), lon: parseFloat(p.lon),
+                    tags: { name: p.name || p.display_name.split(',')[0], [category]: 'yes', description: 'From Nominatim Map Search' }
+                }));
+            }
+        }
+
+        console.log(`[Fallback] Returned ${elements.length} places for category: ${category}`);
+        const result = { elements, source: isAttraction ? 'wikipedia' : 'nominatim' };
+        if (elements.length > 0) fallbackCache.set(cacheKey, { data: result, ts: Date.now() });
+        return res.json(result);
+    } catch (err) {
+        console.error('[Fallback] Failed:', err.message);
+        return res.json({ elements: [], error: err.message }); // 200 OK so frontend doesn't print red logs
+    }
+});
+
+// Default route to serve index.html
+
 
 // Default route to serve index.html
 app.get(/(.*)/, (req, res) => {

@@ -69,16 +69,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function overpassFetch(query) {
-        const res = await fetch(`${API_BASE}/overpass`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query })
-        });
-        if (!res.ok) {
-            const text = await res.text().catch(() => '');
-            throw new Error(`Overpass proxy error ${res.status}: ${text}`);
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 12000); // 12 s client timeout
+        try {
+            const res = await fetch(`${API_BASE}/overpass`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query }),
+                signal: ctrl.signal
+            });
+            clearTimeout(timer);
+            if (!res.ok) {
+                const text = await res.text().catch(() => '');
+                throw new Error(`Could not fetch attractions (server error ${res.status}). Try again.`);
+            }
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            return data;
+        } catch (err) {
+            clearTimeout(timer);
+            throw err;
         }
-        return res.json();
     }
 
     let mainMap = null;
@@ -620,36 +631,140 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             let overpassQueryString = '';
-            const radius = 10000;
+            const radius = 15000; // 15 km — broader for Indian cities
             if(category === 'all' || category === 'attraction') {
-                overpassQueryString = `[out:json][timeout:15];(node["tourism"="attraction"](around:${radius},${lat},${lon});node["tourism"="viewpoint"](around:${radius},${lat},${lon}););out body 20;`;
+                // Broad net: tourism, historic monuments, places of worship — all common in India
+                overpassQueryString = `[out:json][timeout:25];(
+node["tourism"="attraction"](around:${radius},${lat},${lon});
+node["tourism"="viewpoint"](around:${radius},${lat},${lon});
+node["tourism"="artwork"](around:${radius},${lat},${lon});
+node["historic"="monument"](around:${radius},${lat},${lon});
+node["historic"="memorial"](around:${radius},${lat},${lon});
+node["historic"="ruins"](around:${radius},${lat},${lon});
+node["historic"="fort"](around:${radius},${lat},${lon});
+node["amenity"="place_of_worship"](around:${radius},${lat},${lon});
+node["tourism"="museum"](around:${radius},${lat},${lon});
+way["tourism"="attraction"](around:${radius},${lat},${lon});
+way["historic"](around:${radius},${lat},${lon});
+way["amenity"="place_of_worship"](around:${radius},${lat},${lon});
+way["tourism"="museum"](around:${radius},${lat},${lon});
+);out center 30;`;
             } else if(category === 'mall') {
-                overpassQueryString = `[out:json][timeout:15];(node["shop"="mall"](around:${radius},${lat},${lon});way["shop"="mall"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:25];(
+node["shop"="mall"](around:${radius},${lat},${lon});
+node["shop"="supermarket"](around:${radius},${lat},${lon});
+node["amenity"="marketplace"](around:${radius},${lat},${lon});
+way["shop"="mall"](around:${radius},${lat},${lon});
+way["shop"="supermarket"](around:${radius},${lat},${lon});
+way["amenity"="marketplace"](around:${radius},${lat},${lon});
+);out center 25;`;
             } else if(category === 'garden') {
-                overpassQueryString = `[out:json][timeout:15];(node["leisure"="garden"](around:${radius},${lat},${lon});node["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="garden"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:25];(
+node["leisure"="garden"](around:${radius},${lat},${lon});
+node["leisure"="park"](around:${radius},${lat},${lon});
+node["leisure"="nature_reserve"](around:${radius},${lat},${lon});
+way["leisure"="park"](around:${radius},${lat},${lon});
+way["leisure"="garden"](around:${radius},${lat},${lon});
+way["leisure"="nature_reserve"](around:${radius},${lat},${lon});
+);out center 25;`;
             } else if(category === 'historical') {
-                overpassQueryString = `[out:json][timeout:15];(node["historic"](around:${radius},${lat},${lon});way["historic"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:25];(
+node["historic"](around:${radius},${lat},${lon});
+node["historic"="monument"](around:${radius},${lat},${lon});
+node["historic"="fort"](around:${radius},${lat},${lon});
+node["historic"="temple"](around:${radius},${lat},${lon});
+node["historic"="ruins"](around:${radius},${lat},${lon});
+way["historic"](around:${radius},${lat},${lon});
+way["tourism"="attraction"](around:${radius},${lat},${lon});
+);out center 30;`;
             } else if(category === 'lake') {
-                overpassQueryString = `[out:json][timeout:15];(node["water"="lake"](around:${radius},${lat},${lon});way["natural"="water"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:25];(
+node["water"="lake"](around:${radius},${lat},${lon});
+node["natural"="water"](around:${radius},${lat},${lon});
+node["water"="reservoir"](around:${radius},${lat},${lon});
+way["natural"="water"](around:${radius},${lat},${lon});
+way["water"="lake"](around:${radius},${lat},${lon});
+way["water"="reservoir"](around:${radius},${lat},${lon});
+);out center 20;`;
             } else if(category === 'cafe') {
-                overpassQueryString = `[out:json][timeout:15];(node["amenity"="cafe"](around:${radius},${lat},${lon});way["amenity"="cafe"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:25];(
+node["amenity"="cafe"](around:${radius},${lat},${lon});
+node["amenity"="fast_food"](around:${radius},${lat},${lon});
+node["amenity"="ice_cream"](around:${radius},${lat},${lon});
+way["amenity"="cafe"](around:${radius},${lat},${lon});
+way["amenity"="fast_food"](around:${radius},${lat},${lon});
+);out center 30;`;
             } else if(category === 'restaurant') {
-                overpassQueryString = `[out:json][timeout:15];(node["amenity"="restaurant"](around:${radius},${lat},${lon});way["amenity"="restaurant"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:25];(
+node["amenity"="restaurant"](around:${radius},${lat},${lon});
+node["amenity"="food_court"](around:${radius},${lat},${lon});
+node["amenity"="bar"](around:${radius},${lat},${lon});
+way["amenity"="restaurant"](around:${radius},${lat},${lon});
+way["amenity"="food_court"](around:${radius},${lat},${lon});
+);out center 30;`;
             } else if(category === 'museum') {
-                overpassQueryString = `[out:json][timeout:15];(node["tourism"="museum"](around:${radius},${lat},${lon});way["tourism"="museum"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:25];(
+node["tourism"="museum"](around:${radius},${lat},${lon});
+node["tourism"="gallery"](around:${radius},${lat},${lon});
+node["tourism"="zoo"](around:${radius},${lat},${lon});
+node["tourism"="theme_park"](around:${radius},${lat},${lon});
+way["tourism"="museum"](around:${radius},${lat},${lon});
+way["tourism"="gallery"](around:${radius},${lat},${lon});
+way["tourism"="zoo"](around:${radius},${lat},${lon});
+);out center 20;`;
             }
 
-            const data = await overpassFetch(overpassQueryString);
-            
+            console.log(`[Explorer] lat=${lat}, lon=${lon}, query preview:`, overpassQueryString.replace(/\s+/g,' ').slice(0,300));
+            let data = null;
+            try {
+                data = await overpassFetch(overpassQueryString);
+            } catch (e) {
+                // Silently fallback without bleeding red errors into the console
+            }
             loading.style.display = 'none';
 
             let validPois = [];
-            if(data && data.elements) {
-                validPois = data.elements.filter(el => el.tags && (el.tags.name || el.tags.amenity || el.tags.shop || el.tags.tourism || el.tags.leisure || el.tags.historic || el.tags.water));
+            if(data && data.elements && data.elements.length > 0) {
+                console.log(`[Explorer] Overpass returned ${data.elements.length} elements for category=${category}`);
+                validPois = data.elements.filter(el => {
+                    if (!el.tags) return false;
+                    // Must have a name OR a recognisable tag (skip anonymous nodes)
+                    const hasName = !!el.tags.name;
+                    const hasTag  = !!(el.tags.tourism || el.tags.historic || el.tags.amenity ||
+                                       el.tags.leisure || el.tags.shop || el.tags.natural || el.tags.water);
+                    // For way elements, also verify center coords exist
+                    if (el.type === 'way') return (hasName || hasTag) && el.center;
+                    return hasName || hasTag;
+                });
             }
 
-            if(validPois.length === 0) {
-                listDiv.innerHTML = `<div class="empty-state"><p>No ${category} found here. Try another filter.</p></div>`;
+            // Fallback to Wikipedia/Nominatim if no Overpass results
+            if (validPois.length === 0) {
+                console.log(`[Explorer] Catching fallback for category '${category}'...`);
+                try {
+                    loading.style.display = 'block'; 
+                    const fallbackRes = await fetch(`${API_BASE}/nearby-places?lat=${lat}&lon=${lon}&category=${category}`);
+                    loading.style.display = 'none';
+                    if (fallbackRes.ok) {
+                        const fallbackData = await fallbackRes.json();
+                        validPois = fallbackData.elements || [];
+                        console.log(`[Explorer] Fallback returned ${validPois.length} POIs`);
+                    }
+                } catch (e) {
+                    loading.style.display = 'none';
+                }
+            }
+
+            if (validPois.length === 0) {
+                if (data === null) {
+                    listDiv.innerHTML = `<div class="empty-state">
+                        <i class="ph ph-warning-circle" style="font-size:2rem; color:var(--warning); margin-bottom:10px;"></i>
+                        <p>The map server is currently overloaded and cannot fetch <b>${category}s</b>.</p>
+                        <p style="font-size:0.85rem; color:var(--text-secondary); margin-top:5px;">Please try filtering by <b>Attraction</b> or <b>Historical</b> to use our backup system.</p>
+                    </div>`;
+                } else {
+                    listDiv.innerHTML = `<div class="empty-state"><p>No ${category} found here. Try another filter.</p></div>`;
+                }
                 return;
             }
 
