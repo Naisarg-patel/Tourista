@@ -46,71 +46,73 @@ app.post('/api/auth/signup', async (req, res) => {
     if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
     
     try {
+        const existingUser = await User.findOne({ email });
+        if (existingUser) return res.status(409).json({ error: 'Email already exists' });
+
         const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({ name, email, password: hashedPassword });
+        await newUser.save();
         
-        db.run('INSERT INTO users (name, email, password) VALUES (?, ?, ?)', [name, email, hashedPassword], function(err) {
-            if (err) {
-                if (err.message.includes('UNIQUE constraint failed')) {
-                    return res.status(409).json({ error: 'Email already exists' });
-                }
-                return res.status(500).json({ error: 'Database error' });
-            }
-            res.status(201).json({ message: 'User created successfully', userId: this.lastID });
-        });
+        res.status(201).json({ message: 'User created successfully', userId: newUser._id });
     } catch (err) {
+        console.error(err);
         res.status(500).json({ error: 'Server error' });
     }
 });
 
 // Login
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'All fields are required' });
     
-    db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
+    try {
+        const user = await User.findOne({ email });
         if (!user) return res.status(401).json({ error: 'Invalid email or password' });
         
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) return res.status(401).json({ error: 'Invalid email or password' });
         
-        const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-        res.json({ token, user: { id: user.id, name: user.name, email: user.email, favorites: user.favorites } });
-    });
+        const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+        res.json({ token, user: { id: user._id, name: user.name, email: user.email, favorites: user.favorites } });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 // --- User Profile Endpoints ---
 
 // Get Profile
-app.get('/api/users/profile', authenticateToken, (req, res) => {
-    db.get('SELECT id, name, email, favorites, created_at FROM users WHERE id = ?', [req.user.id], (err, user) => {
-        if (err) return res.status(500).json({ error: 'Database error' });
+app.get('/api/users/profile', authenticateToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select('-password');
         if (!user) return res.status(404).json({ error: 'User not found' });
         res.json({ data: user });
-    });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
 // Add/Remove Favorites
-app.post('/api/users/favorites', authenticateToken, (req, res) => {
+app.post('/api/users/favorites', authenticateToken, async (req, res) => {
     const { placeId } = req.body;
     if (!placeId) return res.status(400).json({ error: 'Place ID is required' });
     
-    db.get('SELECT favorites FROM users WHERE id = ?', [req.user.id], (err, user) => {
-        if (err || !user) return res.status(500).json({ error: 'Database error' });
-        let favorites = [];
-        try { favorites = JSON.parse(user.favorites || '[]'); } catch(e) {}
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ error: 'User not found' });
         
-        if (favorites.includes(placeId)) {
-            favorites = favorites.filter(id => id !== placeId);
+        if (user.favorites.includes(placeId)) {
+            user.favorites = user.favorites.filter(id => id !== placeId);
         } else {
-            favorites.push(placeId);
+            user.favorites.push(placeId);
         }
         
-        db.run('UPDATE users SET favorites = ? WHERE id = ?', [JSON.stringify(favorites), req.user.id], function(err) {
-            if (err) return res.status(500).json({ error: 'Failed to update favorites' });
-            res.json({ message: 'Favorites updated', favorites });
-        });
-    });
+        await user.save();
+        res.json({ message: 'Favorites updated', favorites: user.favorites });
+    } catch (err) {
+        res.status(500).json({ error: 'Database error' });
+    }
 });
 
 // --- Existing Endpoints ---
