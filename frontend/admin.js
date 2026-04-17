@@ -13,7 +13,7 @@ const ADMIN_CREDENTIALS = {
     password: '123'
 };
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = 'https://tourista-2m60.onrender.com/api';
 
 // In-memory data stores (simulated for demo; connect to real API/DB as needed)
 let adminState = {

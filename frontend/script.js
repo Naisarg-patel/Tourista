@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const citiesGrid = document.querySelector('.cities-grid');
     const eventList = document.querySelector('.event-list');
     const savedTripsContainer = document.getElementById('saved-trips-list');
-    const API_BASE = (window.TOURISTA_API_BASE || 'http://localhost:3000/api').replace(/\/$/, '');
+    const API_BASE = (window.TOURISTA_API_BASE || 'https://tourista-2m60.onrender.com/api').replace(/\/$/, '');
 
     function apiErrorToast(msg) {
         const t = document.createElement('div');
