@@ -7,6 +7,7 @@ const db = require('./database');
 require('dotenv').config();
 const mongoose = require('mongoose');
 const User = require('./models/User'); // ✅ VERY IMPORTANT
+const Trip = require('./models/Trip'); // Add Trip Model
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected ✅"))
@@ -140,101 +141,83 @@ app.get('/api/events', (req, res) => {
 });
 
 // Get all saved trips
-app.get('/api/trips', authenticateToken, (req, res) => {
-    db.all("SELECT * FROM trips WHERE userId = ? ORDER BY created_at DESC", [req.user.id], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({ data: rows });
-    });
+app.get('/api/trips', authenticateToken, async (req, res) => {
+    try {
+        const trips = await Trip.find({ userId: req.user.id }).sort({ created_at: -1 });
+        res.json({ data: trips });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Get a single trip by ID
-app.get('/api/trips/:id', authenticateToken, (req, res) => {
-    db.get("SELECT * FROM trips WHERE id = ? AND userId = ?", [req.params.id, req.user.id], (err, row) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        if (!row) {
-            res.status(404).json({ error: "Trip not found or access denied" });
-            return;
-        }
-        res.json({ data: row });
-    });
+app.get('/api/trips/:id', authenticateToken, async (req, res) => {
+    try {
+        const trip = await Trip.findOne({ _id: req.params.id, userId: req.user.id });
+        if (!trip) return res.status(404).json({ error: "Trip not found or access denied" });
+        res.json({ data: trip });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // DELETE Trip
-app.delete('/api/trips/:id', authenticateToken, (req, res) => {
-    db.run('DELETE FROM trips WHERE id = ? AND userId = ?', [req.params.id, req.user.id], function (err) {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        if (this.changes === 0) return res.status(404).json({ error: 'Trip not found or unauthorized' });
-        res.json({ message: 'Deleted successfully', changes: this.changes });
-    });
+app.delete('/api/trips/:id', authenticateToken, async (req, res) => {
+    try {
+        const result = await Trip.deleteOne({ _id: req.params.id, userId: req.user.id });
+        if (result.deletedCount === 0) return res.status(404).json({ error: 'Trip not found or unauthorized' });
+        res.json({ message: 'Deleted successfully', changes: result.deletedCount });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // UPDATE Trip (Specific fields, like Day-by-day Itinerary)
-app.put('/api/trips/:id', authenticateToken, (req, res) => {
+app.put('/api/trips/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { itinerary } = req.body;
 
-    const sql = `UPDATE trips SET itinerary = ? WHERE id = ? AND userId = ?`;
-
-    db.run(sql, [itinerary, id, req.user.id], function (err) {
-        if (err) {
-            console.error(err);
-            return res.status(500).json({ error: 'Failed to update trip notes' });
-        }
-        if (this.changes === 0) return res.status(404).json({ error: 'Trip not found or unauthorized' });
-        res.json({ message: 'Trip notes updated successfully', changes: this.changes });
-    });
+    try {
+        const trip = await Trip.findOneAndUpdate(
+            { _id: id, userId: req.user.id },
+            { itinerary },
+            { new: true }
+        );
+        if (!trip) return res.status(404).json({ error: 'Trip not found or unauthorized' });
+        res.json({ message: 'Trip notes updated successfully', changes: 1 });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to update trip notes' });
+    }
 });
 
 // Save a new trip
-app.post('/api/trips', authenticateToken, (req, res) => {
+app.post('/api/trips', authenticateToken, async (req, res) => {
     const { title, details, cost, itinerary, route_data, map_image } = req.body;
 
-    if (!title) {
-        return res.status(400).json({ error: "Title is required" });
+    if (!title) return res.status(400).json({ error: "Title is required" });
+
+    try {
+        const newTrip = new Trip({
+            userId: req.user.id,
+            title,
+            details,
+            cost,
+            itinerary,
+            route_data,
+            map_image
+        });
+        
+        const savedTrip = await newTrip.save();
+        
+        res.json({
+            message: "Trip saved successfully",
+            data: savedTrip
+        });
+    } catch (err) {
+        console.error("Error saving trip:", err.message);
+        res.status(500).json({ error: "Failed to save trip" });
     }
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS trips (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            userId INTEGER,
-            title TEXT NOT NULL,
-            details TEXT,
-            cost TEXT,
-            itinerary TEXT,
-            route_data TEXT,
-            map_image TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(userId) REFERENCES users(id)
-        )
-    `, (err) => {
-        if (err) {
-            console.error("Error creating trips table:", err.message);
-            return res.status(500).json({ error: "Failed to initialize trips table" });
-        }
-
-        db.run(
-            'INSERT INTO trips (userId, title, details, cost, itinerary, route_data, map_image) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [req.user.id, title, details, cost, itinerary, route_data, map_image],
-            function (err) {
-                if (err) {
-                    res.status(500).json({ error: err.message });
-                    return;
-                }
-                res.json({
-                    message: "Trip saved successfully",
-                    data: { id: this.lastID, userId: req.user.id, title, details, cost, itinerary, route_data, map_image }
-                });
-            }
-        );
-    });
 });
 
 // Places Endpoint
