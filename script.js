@@ -59,6 +59,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function geocodeLocation(query) {
+        const res = await fetch(`${API_BASE}/geocode?q=${encodeURIComponent(query)}`);
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error(`Geocode proxy error ${res.status}: ${text}`);
+        }
+        return res.json();
+    }
+
+    async function overpassFetch(query) {
+        const res = await fetch(`${API_BASE}/overpass`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query })
+        });
+        if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error(`Overpass proxy error ${res.status}: ${text}`);
+        }
+        return res.json();
+    }
 
     let mainMap = null;
     let routingMap = null;
@@ -471,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (citiesData.data && citiesData.data.length > 0) {
                 let html = '';
                 citiesData.data.forEach(city => {
-                    html += `<div class="city-card" style="background-image: url('${city.image_url}');"><div class="city-card-overlay"><h3>${city.name}</h3><p>${city.subtitle || ''}</p><button class="btn btn-primary explore-city-btn" data-city="${city.name}">Explore <i class="ph ph-arrow-right"></i></button></div></div>`;
+                    html += `<div class="city-card"><div class="city-card-bg" style="background-image: url('${city.image_url}');"></div><div class="city-card-overlay"><h3>${city.name}</h3><p>${city.subtitle || ''}</p><button class="btn btn-primary explore-city-btn" data-city="${city.name}">Explore <i class="ph ph-arrow-right"></i></button></div></div>`;
                 });
                 html += `<div class="city-card search-custom"><div class="search-custom-inner"><div class="icon-wrapper"><i class="ph ph-globe-hemisphere-east"></i></div><h3>Any City</h3><p>Search globally</p><button class="btn btn-secondary">Search <i class="ph ph-magnifying-glass"></i></button></div></div>`;
                 citiesGrid.innerHTML = html;
@@ -565,8 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Find city coords
         try {
-            const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}&limit=1`, { headers: { "User-Agent": "TouristaApp/1.0" }});
-            const geoData = await geoRes.json();
+            const geoData = await geocodeLocation(city);
             if(geoData && geoData.length > 0) {
                 const lat = parseFloat(geoData[0].lat);
                 const lon = parseFloat(geoData[0].lon);
@@ -593,40 +613,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if(lat === null || lon === null) {
-                const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}&limit=1`, { headers: { "User-Agent": "TouristaApp/1.0" }});
-                const geoData = await geoRes.json();
+                const geoData = await geocodeLocation(city);
                 lat = parseFloat(geoData[0].lat);
                 lon = parseFloat(geoData[0].lon);
                 explorerMap.setView([lat, lon], 12);
             }
 
-            let overpassQuery = '';
+            let overpassQueryString = '';
             const radius = 10000;
             if(category === 'all' || category === 'attraction') {
-                overpassQuery = `[out:json][timeout:15];(node["tourism"="attraction"](around:${radius},${lat},${lon});node["tourism"="viewpoint"](around:${radius},${lat},${lon}););out body 20;`;
+                overpassQueryString = `[out:json][timeout:15];(node["tourism"="attraction"](around:${radius},${lat},${lon});node["tourism"="viewpoint"](around:${radius},${lat},${lon}););out body 20;`;
             } else if(category === 'mall') {
-                overpassQuery = `[out:json][timeout:15];(node["shop"="mall"](around:${radius},${lat},${lon});way["shop"="mall"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:15];(node["shop"="mall"](around:${radius},${lat},${lon});way["shop"="mall"](around:${radius},${lat},${lon}););out center 20;`;
             } else if(category === 'garden') {
-                overpassQuery = `[out:json][timeout:15];(node["leisure"="garden"](around:${radius},${lat},${lon});node["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="garden"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:15];(node["leisure"="garden"](around:${radius},${lat},${lon});node["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="park"](around:${radius},${lat},${lon});way["leisure"="garden"](around:${radius},${lat},${lon}););out center 20;`;
             } else if(category === 'historical') {
-                overpassQuery = `[out:json][timeout:15];(node["historic"](around:${radius},${lat},${lon});way["historic"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:15];(node["historic"](around:${radius},${lat},${lon});way["historic"](around:${radius},${lat},${lon}););out center 20;`;
             } else if(category === 'lake') {
-                overpassQuery = `[out:json][timeout:15];(node["water"="lake"](around:${radius},${lat},${lon});way["natural"="water"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:15];(node["water"="lake"](around:${radius},${lat},${lon});way["natural"="water"](around:${radius},${lat},${lon}););out center 20;`;
             } else if(category === 'cafe') {
-                overpassQuery = `[out:json][timeout:15];(node["amenity"="cafe"](around:${radius},${lat},${lon});way["amenity"="cafe"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:15];(node["amenity"="cafe"](around:${radius},${lat},${lon});way["amenity"="cafe"](around:${radius},${lat},${lon}););out center 20;`;
             } else if(category === 'restaurant') {
-                overpassQuery = `[out:json][timeout:15];(node["amenity"="restaurant"](around:${radius},${lat},${lon});way["amenity"="restaurant"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:15];(node["amenity"="restaurant"](around:${radius},${lat},${lon});way["amenity"="restaurant"](around:${radius},${lat},${lon}););out center 20;`;
             } else if(category === 'museum') {
-                overpassQuery = `[out:json][timeout:15];(node["tourism"="museum"](around:${radius},${lat},${lon});way["tourism"="museum"](around:${radius},${lat},${lon}););out center 20;`;
+                overpassQueryString = `[out:json][timeout:15];(node["tourism"="museum"](around:${radius},${lat},${lon});way["tourism"="museum"](around:${radius},${lat},${lon}););out center 20;`;
             }
 
-            let overpassRes;
-            try {
-                overpassRes = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: overpassQuery, signal: AbortSignal.timeout(10000) });
-            } catch(e) {
-                overpassRes = await fetch('https://overpass.kumi.systems/api/interpreter', { method: 'POST', body: overpassQuery, signal: AbortSignal.timeout(10000) });
-            }
-            const data = await overpassRes.json();
+            const data = await overpassFetch(overpassQueryString);
             
             loading.style.display = 'none';
 
@@ -925,9 +938,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (downloadOfflineBtn) { downloadOfflineBtn.disabled = true; downloadOfflineBtn.style.opacity = '0.5'; }
 
             try {
-                const fetchPromises = allLocations.map(loc =>
-                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(loc)}&limit=1`).then(r => r.json())
-                );
+                const fetchPromises = allLocations.map(loc => geocodeLocation(loc));
                 const results = await Promise.all(fetchPromises);
 
                 let validCoords = [];
@@ -987,25 +998,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                     minLat -= 0.05; maxLat += 0.05; minLon -= 0.05; maxLon += 0.05;
 
-                    const overpassQuery = `[out:json][timeout:10];(node["tourism"="attraction"](${minLat},${minLon},${maxLat},${maxLon});node["historic"](${minLat},${minLon},${maxLat},${maxLon}););out body 15;`;
-                    let overpassRes;
+                    const overpassQueryString = `[out:json][timeout:10];(node["tourism"="attraction"](${minLat},${minLon},${maxLat},${maxLon});node["historic"](${minLat},${minLon},${maxLat},${maxLon}););out body 15;`;
                     let validPois = [];
-                    try {
-                        const controller1 = new AbortController();
-                        const id1 = setTimeout(() => controller1.abort(), 10000);
-                        overpassRes = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: overpassQuery, signal: controller1.signal });
-                        clearTimeout(id1);
-                    } catch(e) {
-                         const controller2 = new AbortController();
-                         const id2 = setTimeout(() => controller2.abort(), 10000);
-                         overpassRes = await fetch('https://overpass.kumi.systems/api/interpreter', { method: 'POST', body: overpassQuery, signal: controller2.signal });
-                         clearTimeout(id2);
-                    }
-                    if(overpassRes && overpassRes.ok) {
-                        const overpassData = await overpassRes.json();
-                        if(overpassData && overpassData.elements) {
-                            validPois = overpassData.elements.filter(el => el.tags && el.tags.name);
-                        }
+                    const overpassData = await overpassFetch(overpassQueryString);
+                    if(overpassData && overpassData.elements) {
+                        validPois = overpassData.elements.filter(el => el.tags && el.tags.name);
                     }
 
                     if (validPois.length === 0) {
@@ -1127,11 +1124,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const activeTags = Array.from(document.querySelectorAll('.tag.active')).map(t => t.innerText.toLowerCase());
 
             try {
-                // Use a clear User-Agent for Nominatim to prevent being blocked
-                const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(destInput)}&limit=1`, {
-                    headers: { "User-Agent": "TouristaApp/1.0" }
-                });
-                const geoData = await geoRes.json();
+                const geoData = await geocodeLocation(destInput);
                 if (geoData.length === 0) throw new Error("Destination not found.");
 
                 const lat = parseFloat(geoData[0].lat);
@@ -1151,15 +1144,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 let validPois = [];
                 try {
                     // Try Overpass DE mirror first, fallback to Kumi Systems if it fails or times out
-                    const overpassQuery = `[out:json][timeout:25];(${poiTypes.map(tag => `${tag}(around:${radius},${lat},${lon});`).join('')});out body 40;`;
-                    let overpassRes;
-                    try {
-                        overpassRes = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: overpassQuery, signal: AbortSignal.timeout(10000) });
-                    } catch(e) {
-                         overpassRes = await fetch('https://overpass.kumi.systems/api/interpreter', { method: 'POST', body: overpassQuery, signal: AbortSignal.timeout(10000) });
-                    }
-                    if(!overpassRes.ok) throw new Error("Overpass Error");
-                    const overpassData = await overpassRes.json();
+                    const overpassQueryString = `[out:json][timeout:25];(${poiTypes.map(tag => `${tag}(around:${radius},${lat},${lon});`).join('')});out body 40;`;
+                    const overpassData = await overpassFetch(overpassQueryString);
                     if(overpassData && overpassData.elements) {
                          validPois = overpassData.elements.filter(el => el.tags && el.tags.name);
                     }
@@ -1273,9 +1259,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!navigator.geolocation) { alert("Geolocation not supported."); liveBtn.innerHTML = orig; liveBtn.disabled = false; return; }
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 try {
-                    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=10`);
+                    const r = await fetch(`${API_BASE}/reverse?lat=${encodeURIComponent(pos.coords.latitude)}&lon=${encodeURIComponent(pos.coords.longitude)}&zoom=10`);
                     const d = await r.json();
-                    destInput.value = d.address.city || d.address.town || d.address.village || d.address.county || 'Unknown';
+                    destInput.value = d.address?.city || d.address?.town || d.address?.village || d.address?.county || 'Unknown';
                 } catch (err) { alert("Could not determine city name."); }
                 finally { liveBtn.innerHTML = orig; liveBtn.disabled = false; }
             }, () => { alert("Location access denied."); liveBtn.innerHTML = orig; liveBtn.disabled = false; });

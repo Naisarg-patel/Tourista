@@ -117,9 +117,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
 function seedData() {
     // Seed Cities
     const stmt = db.prepare(`INSERT INTO cities (name, subtitle, image_url, tags) VALUES (?, ?, ?, ?)`);
-    stmt.run('Ahmedabad', 'Heritage & Modernity', 'https://images.unsplash.com/photo-1587424016739-bdabf49a8d9d?q=80&w=800&auto=format&fit=crop', 'History,Food');
-    stmt.run('Gandhinagar', 'The Green Capital', 'https://images.unsplash.com/photo-1598460670397-2b7e91d84814?q=80&w=800&auto=format&fit=crop', 'Nature,Architecture');
-    stmt.run('Mehsana', 'Gateway to North Gujarat', 'https://images.unsplash.com/photo-1627806509653-f728dc763071?q=80&w=800&auto=format&fit=crop', 'Culture,Temples');
+    stmt.run('Ahmedabad', 'Heritage & Modernity', '/images/cities/ahmedabad.png', 'History,Food');
+    stmt.run('Gandhinagar', 'The Green Capital', '/images/cities/gandhinagar.png', 'Nature,Architecture');
+    stmt.run('Mehsana', 'Gateway to North Gujarat', '/images/cities/mehsana.png', 'Culture,Temples');
     stmt.finalize();
 
     // Seed Events for Ahmedabad (ID 1)

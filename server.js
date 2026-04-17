@@ -237,6 +237,93 @@ app.get('/api/places', authenticateToken, (req, res) => {
     });
 });
 
+// Geocoding proxy for OpenStreetMap Nominatim
+app.get('/api/geocode', async (req, res) => {
+    const q = req.query.q;
+    if (!q) return res.status(400).json({ error: 'Query parameter q is required' });
+
+    try {
+        const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`;
+        const geoRes = await fetch(nominatimUrl, {
+            headers: { 'User-Agent': 'TouristaApp/1.0 (+https://example.com)' }
+        });
+
+        if (!geoRes.ok) {
+            const text = await geoRes.text().catch(() => '');
+            return res.status(502).json({ error: 'Geocode upstream error', details: text });
+        }
+
+        const geoData = await geoRes.json();
+        res.json(geoData);
+    } catch (err) {
+        console.error('Geocode proxy error', err);
+        res.status(502).json({ error: 'Geocode fetch failed' });
+    }
+});
+
+app.get('/api/reverse', async (req, res) => {
+    const { lat, lon, zoom = 10 } = req.query;
+    if (!lat || !lon) return res.status(400).json({ error: 'lat and lon are required' });
+
+    try {
+        const nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&zoom=${encodeURIComponent(zoom)}`;
+        const revRes = await fetch(nominatimUrl, {
+            headers: { 'User-Agent': 'TouristaApp/1.0 (+https://example.com)' }
+        });
+
+        if (!revRes.ok) {
+            const text = await revRes.text().catch(() => '');
+            return res.status(502).json({ error: 'Reverse geocode upstream error', details: text });
+        }
+
+        const revData = await revRes.json();
+        res.json(revData);
+    } catch (err) {
+        console.error('Reverse geocode proxy error', err);
+        res.status(502).json({ error: 'Reverse geocode fetch failed' });
+    }
+});
+
+// Overpass proxy for OpenStreetMap queries
+app.post('/api/overpass', express.json(), async (req, res) => {
+    const { query } = req.body;
+    if (!query) return res.status(400).json({ error: 'Query is required' });
+
+    const endpoints = [
+        'https://overpass-api.de/api/interpreter',
+        'https://lz4.overpass-api.de/api/interpreter',
+        'https://overpass.kumi.systems/api/interpreter',
+        'https://overpass.osm.ch/api/interpreter'
+    ];
+
+    let lastErrorDetails = '';
+
+    for (const endpoint of endpoints) {
+        try {
+            const overpassRes = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'User-Agent': 'TouristaApp/1.0 (+https://example.com)' },
+                body: query,
+                signal: AbortSignal.timeout(10000) // Lowered to 10s per mirror to fail fast
+            });
+
+            if (overpassRes.ok) {
+                const data = await overpassRes.json();
+                return res.json(data);
+            } else {
+                lastErrorDetails = await overpassRes.text().catch(() => '');
+                console.warn(`Overpass mirror ${endpoint} returned ${overpassRes.status}`);
+            }
+        } catch (err) {
+            console.warn(`Overpass mirror ${endpoint} failed:`, err.message);
+            lastErrorDetails = err.message;
+        }
+    }
+
+    console.error('All Overpass proxies failed. Last error:', lastErrorDetails);
+    res.status(502).json({ error: 'Overpass fetch failed across all mirrors', details: lastErrorDetails });
+});
+
 // Default route to serve index.html
 app.get(/(.*)/, (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));

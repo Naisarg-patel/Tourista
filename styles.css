@@ -601,11 +601,21 @@ body.light-theme .btn-secondary {
     border-radius: var(--radius-lg);
     overflow: hidden;
     position: relative;
-    background-size: cover;
-    background-position: center;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     transition: transform var(--transition-smooth);
     border: var(--glass-border);
+}
+
+.city-card-bg {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    background-size: cover;
+    background-position: center;
+    filter: blur(4px);
+    z-index: 0;
 }
 
 .city-card:hover {
@@ -618,21 +628,25 @@ body.light-theme .btn-secondary {
     left: 0;
     right: 0;
     padding: 2rem 1.5rem 1.5rem 1.5rem;
-    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 50%, transparent 100%);
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.5) 60%, transparent 100%);
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    z-index: 1;
 }
 
 .city-card-overlay h3 {
     font-size: 1.5rem;
     margin-bottom: 0.25rem;
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
 }
 
 .city-card-overlay p {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
+    color: #e2e8f0;
+    font-size: 0.95rem;
     margin-bottom: 1.25rem;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
 }
 
 .search-custom {
