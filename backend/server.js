@@ -463,9 +463,9 @@ app.get('/api/nearby-places', async (req, res) => {
 // Default route to serve index.html
 
 
-// Default route to serve index.html
-app.get(/(.*)/, (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+// Default API healthcheck route
+app.get('/', (req, res) => {
+    res.json({ status: 'Ok', message: 'Tourista Backend API is running successfully!' });
 });
 
 // Start Server
