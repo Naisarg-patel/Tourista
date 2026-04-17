@@ -4,6 +4,12 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('./database');
+require('dotenv').config();
+const mongoose = require('mongoose');
+
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB Connected ✅"))
+  .catch(err => console.log(err));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,7 +17,6 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '/'))); // Serve static files from root
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tourista-super-secret-key-2026';
 

@@ -1113,6 +1113,11 @@ way["tourism"="zoo"](around:${radius},${lat},${lon});
                     });
                     minLat -= 0.05; maxLat += 0.05; minLon -= 0.05; maxLon += 0.05;
 
+                    // Prevent massive bounding box queries that crash Overpass mirrors
+                    if (Math.abs(maxLat - minLat) > 1.5 || Math.abs(maxLon - minLon) > 1.5) {
+                        throw new Error("Bounding box too large. Overpass query would timeout. Skipping to fallback.");
+                    }
+
                     const overpassQueryString = `[out:json][timeout:10];(node["tourism"="attraction"](${minLat},${minLon},${maxLat},${maxLon});node["historic"](${minLat},${minLon},${maxLat},${maxLon}););out body 15;`;
                     let validPois = [];
                     const overpassData = await overpassFetch(overpassQueryString);
