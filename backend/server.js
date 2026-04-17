@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const db = require('./database');
 require('dotenv').config();
 const mongoose = require('mongoose');
+const User = require('./models/User'); // ✅ VERY IMPORTANT
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected ✅"))
