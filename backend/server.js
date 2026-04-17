@@ -9,7 +9,7 @@ const mongoose = require('mongoose');
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected ✅"))
-  .catch(err => console.log(err));
+  .catch(err => console.log("DB error:", err));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
